@@ -27,15 +27,12 @@
   z-index: 210;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   background:
     radial-gradient(ellipse 100% 50% at 65% 18%, rgba(255,193,94,.30) 0%, transparent 55%),
     radial-gradient(ellipse 60%  30% at 20% 10%, rgba(180,80,15,.25)  0%, transparent 50%),
     linear-gradient(180deg, #2C1B10 0%, #1A0E07 30%, #0F0A06 60%, #090705 100%);
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 #main-menu.hidden { display: none; }
 @keyframes mmFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -44,7 +41,91 @@
 /* Скрытые слои-заглушки */
 .mm-bg,.mm-bg-bottom,.mm-vignette,.mm-dust { display: none; }
 
-/* Фреймовый контейнер */
+/* ─── Страницы ──────────────────────────────────────────────── */
+.mm-pages-viewport {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+}
+.mm-pages-track {
+  display: flex;
+  height: 100%;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+.mm-page {
+  width: 100vw;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ─── Нижняя навигация ──────────────────────────────────────── */
+.mm-bottom-nav {
+  display: flex;
+  height: 56px;
+  flex-shrink: 0;
+  background: rgba(9, 7, 5, 0.97);
+  border-top: 1px solid rgba(244,181,74,.18);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 10;
+}
+.mm-nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(244,181,74,.35);
+  transition: color .15s;
+  -webkit-tap-highlight-color: transparent;
+  padding: 6px 4px 4px;
+}
+.mm-nav-tab--active { color: var(--gold); }
+.mm-nav-tab-icon  { font-size: 17px; line-height: 1; }
+.mm-nav-tab-label {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* ─── Заглушка для незаконченных страниц ────────────────────── */
+.mm-stub-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 14px;
+  padding: 40px 24px;
+  text-align: center;
+}
+.mm-stub-icon  { font-size: 52px; opacity: .55; }
+.mm-stub-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+  opacity: .7;
+}
+.mm-stub-desc {
+  font-size: 14px;
+  color: var(--sub);
+  opacity: .5;
+}
+
+/* Фреймовый контейнер (страница Бой) */
 .mm-layout {
   width: min(100%, 430px);
   min-height: 100%;
@@ -141,10 +222,12 @@
   border-radius: 50% 50% 45% 55%;
   background: radial-gradient(circle at 30% 30%, #F0AA32, #D17F18 60%, #A6560D 100%);
 }
-.mm-icon-crystal {
-  width: 22px; height: 26px;
-  background: linear-gradient(180deg, #34D69A, #0E8D63);
-  clip-path: polygon(50% 0, 100% 35%, 80% 100%, 20% 100%, 0 35%);
+.mm-icon-water-ring {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  border: 4px solid #4ABDE8;
+  box-shadow: 0 0 8px rgba(74,189,232,.55), inset 0 0 6px rgba(74,189,232,.25);
 }
 .mm-res-value { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.15; }
 .mm-res-label { font-size: 12px; color: var(--sub); }

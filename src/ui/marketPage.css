@@ -1,0 +1,505 @@
+/* ═══════════════════════════════════════════════
+   КАРАВAННЫЙ РЫНОК — marketPage.css
+   ═══════════════════════════════════════════════ */
+
+.mp-layout {
+  width: min(100%, 430px);
+  margin: 0 auto;
+  padding: 14px 14px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ─── Кошелёк ─── */
+.mp-wallet {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: linear-gradient(180deg, #17120D 0%, #0E0B08 100%);
+  border: 2px solid rgba(244,181,74,.70);
+  border-radius: 20px;
+  padding: 12px 16px;
+  box-shadow: inset 0 0 0 1px rgba(255,214,123,.10);
+}
+.mp-wallet-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mp-wallet-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(244,181,74,.20);
+  margin: 0 12px;
+  flex-shrink: 0;
+}
+.mp-wallet-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.mp-wallet-value {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #F5E8C8;
+  line-height: 1.1;
+}
+.mp-wallet-label {
+  font-size: 11px;
+  color: #E1C58B;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+/* ─── Баннер ─── */
+.mp-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(160,90,20,.40) 0%, transparent 60%),
+    linear-gradient(135deg, #1E1208 0%, #130E07 100%);
+  border: 1.5px solid rgba(244,181,74,.45);
+  border-radius: 18px;
+}
+.mp-banner-icon {
+  font-size: 38px;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(255,160,40,.5));
+}
+.mp-banner-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #F4B54A;
+  letter-spacing: 1px;
+}
+.mp-banner-sub {
+  font-size: 12px;
+  color: #E1C58B;
+  margin-top: 3px;
+}
+
+/* ─── Секции ─── */
+.mp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.mp-section-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #F4B54A;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mp-section-badge {
+  font-family: 'Manrope', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #E1C58B;
+  background: rgba(244,181,74,.12);
+  border: 1px solid rgba(244,181,74,.25);
+  border-radius: 20px;
+  padding: 3px 9px;
+  letter-spacing: 0.04em;
+}
+.mp-pity-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.mp-pity-icon { font-size: 12px; }
+
+/* ─── Pity Bar ─── */
+.mp-pity-bar-wrap {
+  height: 4px;
+  background: rgba(255,255,255,.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: -4px;
+}
+.mp-pity-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6A8FFF, #A0BFFF);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* ─── Сетка тайников ─── */
+.mp-chests-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.mp-chest {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 10px 12px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255,255,255,.10);
+  background: linear-gradient(180deg, #1A1208 0%, #110E08 100%);
+  transition: border-color .18s, box-shadow .18s;
+  position: relative;
+  overflow: hidden;
+}
+.mp-chest::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity .18s;
+  pointer-events: none;
+}
+.mp-chest:hover { box-shadow: 0 0 14px rgba(255,191,71,.15); }
+
+/* Rarity borders */
+.mp-chest--common    { border-color: rgba(160,160,160,.30); }
+.mp-chest--uncommon  { border-color: rgba(60,200,80,.35); }
+.mp-chest--rare      { border-color: rgba(80,140,255,.45); }
+.mp-chest--epic      { border-color: rgba(160,80,255,.50); }
+.mp-chest--legendary { border-color: rgba(244,181,74,.70); box-shadow: 0 0 12px rgba(244,181,74,.20); }
+
+.mp-chest--locked { opacity: 0.55; }
+
+.mp-chest-icon {
+  font-size: 32px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.5));
+}
+.mp-chest-name {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #F5E8C8;
+  text-align: center;
+  line-height: 1.2;
+}
+.mp-chest-desc {
+  font-size: 10px;
+  color: #A0886A;
+  text-align: center;
+  line-height: 1.3;
+}
+.mp-chest-btn {
+  margin-top: 4px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(244,181,74,.55);
+  background: linear-gradient(180deg, rgba(212,165,50,.18) 0%, rgba(160,110,20,.12) 100%);
+  color: #F0C84A;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, box-shadow .15s, transform .1s;
+  letter-spacing: 0.5px;
+}
+.mp-chest-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(212,165,50,.35) 0%, rgba(160,110,20,.28) 100%);
+  box-shadow: 0 0 10px rgba(212,165,50,.25);
+  transform: translateY(-1px);
+}
+.mp-chest-btn--locked,
+.mp-chest-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ─── Контракты ─── */
+.mp-contracts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mp-contract {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #1C120A, #12100C);
+  border: 1.5px solid rgba(255,255,255,.07);
+  transition: border-color .15s;
+}
+.mp-contract--done { border-color: rgba(74,154,74,.30); background: rgba(74,154,74,.04); }
+.mp-contract-info { flex: 1; min-width: 0; }
+.mp-contract-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #F5E8C8;
+  margin-bottom: 2px;
+}
+.mp-contract-desc {
+  font-size: 11px;
+  color: #E1C58B;
+  margin-bottom: 6px;
+}
+.mp-contract-bar-wrap {
+  height: 3px;
+  background: rgba(255,255,255,.10);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.mp-contract-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5e10, #c49a3a);
+  border-radius: 3px;
+  transition: width .4s ease;
+}
+.mp-contract-progress {
+  font-size: 10px;
+  color: #7a6030;
+}
+.mp-contract-btn {
+  flex-shrink: 0;
+  width: 64px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+  color: #6a5040;
+  font-size: 12px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.mp-contract-btn--ready {
+  border-color: rgba(244,181,74,.60);
+  background: linear-gradient(135deg, rgba(212,165,50,.20), rgba(160,110,20,.15));
+  color: #F0C84A;
+  cursor: pointer;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+}
+.mp-contract-btn--ready:hover {
+  background: linear-gradient(135deg, rgba(212,165,50,.38), rgba(160,110,20,.28));
+  box-shadow: 0 0 10px rgba(212,165,50,.25);
+}
+
+/* ─── Маршрут ─── */
+.mp-route {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+.mp-route::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 24px;
+  bottom: 24px;
+  width: 2px;
+  background: rgba(244,181,74,.15);
+  border-radius: 1px;
+}
+.mp-route-node {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  transition: border-color .15s;
+  position: relative;
+  z-index: 1;
+}
+.mp-route-node--reached {
+  border-color: rgba(74,154,74,.30);
+  background: rgba(74,154,74,.05);
+}
+.mp-route-node--next {
+  border-color: rgba(244,181,74,.40);
+  background: rgba(244,181,74,.05);
+}
+.mp-route-node-icon {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.04);
+  border-radius: 10px;
+}
+.mp-route-node-info { flex: 1; min-width: 0; }
+.mp-route-node-name {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #F5E8C8;
+}
+.mp-route-node-req {
+  font-size: 10px;
+  color: #7a6030;
+  margin-top: 2px;
+}
+.mp-route-node--reached .mp-route-node-req { color: #4a9a4a; }
+.mp-route-node-reward {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #F4B54A;
+  flex-shrink: 0;
+}
+.mp-route-node-claim-btn {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(244,181,74,.55);
+  background: linear-gradient(135deg, rgba(212,165,50,.20), rgba(160,110,20,.15));
+  color: #F0C84A;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+}
+.mp-route-node-claim-btn:hover {
+  background: linear-gradient(135deg, rgba(212,165,50,.38), rgba(160,110,20,.28));
+  box-shadow: 0 0 8px rgba(212,165,50,.25);
+}
+
+/* ─── Toast ─── */
+.mp-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(10,8,6,.95);
+  border: 1.5px solid rgba(244,181,74,.50);
+  border-radius: 12px;
+  padding: 10px 20px;
+  font-size: 13px;
+  color: #F5E8C8;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease, transform .25s ease;
+  white-space: nowrap;
+}
+.mp-toast--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ─── Reward Modal ─── */
+.mp-reward-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.75);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.mp-reward-modal--show { opacity: 1; }
+.mp-reward-card {
+  background: linear-gradient(180deg, #1E1208 0%, #130E07 100%);
+  border: 2px solid rgba(244,181,74,.70);
+  border-radius: 22px;
+  padding: 30px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+  max-width: 300px;
+  width: 90%;
+  animation: mpRewardPop .3s cubic-bezier(.2,.8,.4,1.2) both;
+}
+@keyframes mpRewardPop {
+  from { transform: scale(.8); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+.mp-reward-icon {
+  font-size: 48px;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(255,191,71,.60));
+}
+.mp-reward-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #F4B54A;
+  letter-spacing: 1px;
+}
+.mp-reward-text {
+  font-size: 16px;
+  color: #F5E8C8;
+  font-weight: 600;
+}
+.mp-reward-bonus {
+  font-size: 13px;
+  color: #88CCFF;
+  background: rgba(136,204,255,.10);
+  border: 1px solid rgba(136,204,255,.25);
+  border-radius: 8px;
+  padding: 5px 12px;
+}
+.mp-reward-close {
+  margin-top: 6px;
+  padding: 12px 32px;
+  border-radius: 12px;
+  border: 1px solid rgba(244,181,74,.60);
+  background: linear-gradient(135deg, rgba(212,165,50,.22), rgba(160,110,20,.18));
+  color: #F0C84A;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all .15s;
+}
+.mp-reward-close:hover {
+  background: linear-gradient(135deg, rgba(212,165,50,.42), rgba(160,110,20,.35));
+  box-shadow: 0 0 14px rgba(212,165,50,.30);
+}
+
+/* ─── Win reward block ─── */
+.win-reward-block {
+  margin-top: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(244,181,74,.08);
+  border: 1px solid rgba(244,181,74,.25);
+  text-align: center;
+}
+.win-reward-row {
+  font-size: 13px;
+  color: #E1C58B;
+  line-height: 1.7;
+}
+.win-reward-streak {
+  font-size: 12px;
+  color: #88CCFF;
+  margin-top: 4px;
+}

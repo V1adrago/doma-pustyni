@@ -161,6 +161,7 @@
       <div id="win-subtitle"></div>
       <div id="win-stats"></div>
       <div id="win-rating-block" class="hidden"></div>
+      <div id="win-reward-block" class="hidden"></div>
       <div id="win-unlock-block" class="hidden"></div>
       <div class="win-buttons">
         <button id="btn-win-next" class="hidden">⚔ Следующий бой</button>
@@ -450,6 +451,11 @@
 
   <!-- Главное меню — мобильный game screen -->
   <div id="main-menu" class="hidden">
+  <div class="mm-pages-viewport">
+  <div class="mm-pages-track" id="mm-pages-track">
+
+  <!-- ── Страница 0: Бой ── -->
+  <div class="mm-page mm-page-battle">
     <div class="mm-layout">
 
       <!-- Верхняя панель -->
@@ -475,15 +481,15 @@
           <button class="mm-resource" id="mm-spices-btn" aria-label="Специи">
             <span class="mm-res-icon-wrap"><span class="mm-icon-spice"></span></span>
             <div class="mm-res-info">
-              <div class="mm-res-value" id="mm-spices-value">4 250</div>
-              <div class="mm-res-label">Специи</div>
+              <div class="mm-res-value" id="mm-spices-value">0</div>
+              <div class="mm-res-label">Запасы специй</div>
             </div>
           </button>
-          <button class="mm-resource" id="mm-crystals-btn" aria-label="Кристаллы">
-            <span class="mm-res-icon-wrap"><span class="mm-icon-crystal"></span></span>
+          <button class="mm-resource" id="mm-water-rings-btn" aria-label="Водные кольца">
+            <span class="mm-res-icon-wrap"><span class="mm-icon-water-ring"></span></span>
             <div class="mm-res-info">
-              <div class="mm-res-value" id="mm-crystals-value">560</div>
-              <div class="mm-res-label">Кристаллы</div>
+              <div class="mm-res-value" id="mm-water-rings-value">0</div>
+              <div class="mm-res-label">Водные кольца</div>
             </div>
           </button>
         </div>
@@ -573,8 +579,69 @@
       </button>
 
       <div class="mm-bottom-pad"></div>
+    </div><!-- /.mm-layout -->
+  </div><!-- /.mm-page-battle -->
+
+  <!-- ── Страница 1: Карты ── -->
+  <div class="mm-page mm-page-cards" id="mm-page-cards">
+    <div class="mm-stub-layout">
+      <div class="mm-stub-icon">🃏</div>
+      <div class="mm-stub-title">Коллекция карт</div>
+      <div class="mm-stub-desc">В разработке</div>
     </div>
   </div>
+
+  <!-- ── Страница 2: Рынок ── -->
+  <div class="mm-page mm-page-market" id="mm-page-market">
+    <!-- Заполняется классом MarketPage -->
+  </div>
+
+  <!-- ── Страница 3: Путь ── -->
+  <div class="mm-page mm-page-path" id="mm-page-path">
+    <div class="mm-stub-layout">
+      <div class="mm-stub-icon">🗺</div>
+      <div class="mm-stub-title">Путь воина</div>
+      <div class="mm-stub-desc">В разработке</div>
+    </div>
+  </div>
+
+  <!-- ── Страница 4: Профиль ── -->
+  <div class="mm-page mm-page-profile" id="mm-page-profile">
+    <div class="mm-stub-layout">
+      <div class="mm-stub-icon">👤</div>
+      <div class="mm-stub-title">Дом</div>
+      <div class="mm-stub-desc">В разработке</div>
+    </div>
+  </div>
+
+  </div><!-- /.mm-pages-track -->
+  </div><!-- /.mm-pages-viewport -->
+
+  <!-- ── Нижняя навигация ── -->
+  <nav class="mm-bottom-nav" id="mm-bottom-nav" aria-label="Навигация">
+    <button class="mm-nav-tab mm-nav-tab--active" data-page="0" aria-label="Бой">
+      <span class="mm-nav-tab-icon">⚔</span>
+      <span class="mm-nav-tab-label">Бой</span>
+    </button>
+    <button class="mm-nav-tab" data-page="1" aria-label="Карты">
+      <span class="mm-nav-tab-icon">🃏</span>
+      <span class="mm-nav-tab-label">Карты</span>
+    </button>
+    <button class="mm-nav-tab" data-page="2" aria-label="Рынок">
+      <span class="mm-nav-tab-icon">🛒</span>
+      <span class="mm-nav-tab-label">Рынок</span>
+    </button>
+    <button class="mm-nav-tab" data-page="3" aria-label="Путь">
+      <span class="mm-nav-tab-icon">🗺</span>
+      <span class="mm-nav-tab-label">Путь</span>
+    </button>
+    <button class="mm-nav-tab" data-page="4" aria-label="Дом">
+      <span class="mm-nav-tab-icon">🏠</span>
+      <span class="mm-nav-tab-label">Дом</span>
+    </button>
+  </nav>
+
+  </div><!-- /#main-menu -->
 
   <!-- Экран управления боевыми колодами -->
   <div id="preset-screen" class="hidden">

@@ -1,15 +1,15 @@
-// Состояние главного меню. Заменить на данные из profile-service при интеграции.
+// Состояние главного меню. Синхронизируется с profile-service и wallet-service.
 export const menuState = {
   player: {
     name:   'Игрок',
     house:  'Дом Чести',
-    level:  12,
-    xp:     1250,
-    xpMax:  2000,
+    level:  1,
+    xp:     0,
+    xpMax:  100,
   },
   resources: {
-    spices:   4250,
-    crystals: 560,
+    spices:     0,
+    waterRings: 0,
   },
   location: {
     id:    'sand_outpost',
@@ -17,8 +17,8 @@ export const menuState = {
     level: 1,
   },
   rating: {
-    value:         1250,
-    nextLevelNeed: 750,
+    value:         0,
+    nextLevelNeed: 100,
   },
   selectedFaction: 'house_honor',
   factions: [

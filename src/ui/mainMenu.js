@@ -1,6 +1,8 @@
 import './mainMenu.css';
 import { menuState } from './menuState.js';
 import { loadProfile } from '../services/profile-service.js';
+import { loadWallet } from '../services/wallet-service.js';
+import { MarketPage } from './marketPage.js';
 import { PROGRESSION } from '../config/progression.js';
 import {
   loadPresets, createPreset, updatePreset, deletePreset, MAX_PRESETS,
@@ -19,12 +21,15 @@ export class MainMenu {
     this._modalContent     = document.getElementById('mm-modal-content');
     this._activePresetId   = null;
     this._onDeckBuilt      = null;
-    this._onStartTutorial  = null; // callback(lessonId)
+    this._onStartTutorial  = null;
     this._menuTourOverlay  = new TutorialOverlay();
+    this._currentPage      = 0;
+    this._marketPage       = null;
     this._render();
     this._bindEvents();
     this._bindPresetScreenEvents();
     this._bindTutorialEvents();
+    this._bindBottomNav();
   }
 
   /** Устанавливается из main.js: fn(lessonId) */
@@ -47,8 +52,11 @@ export class MainMenu {
 
   _syncProfile() {
     const p = loadProfile();
-    menuState.player.level = p.level;
-    menuState.rating.value = p.rating;
+    const w = loadWallet();
+    menuState.player.level        = p.level;
+    menuState.rating.value        = p.rating;
+    menuState.resources.waterRings = w.waterRings;
+    menuState.resources.spices     = w.metaSpices || 0;
 
     const currTier = PROGRESSION.find(t => t.level === p.level) ?? PROGRESSION[0];
     const nextTier = PROGRESSION.find(t => t.level === p.level + 1);
@@ -84,8 +92,8 @@ export class MainMenu {
       : `Рейтинг: ${s.rating.value}`;
     this._q('#mm-xp-text').textContent = nextLvl;
 
-    this._q('#mm-spices-value').textContent   = s.resources.spices.toLocaleString('ru-RU');
-    this._q('#mm-crystals-value').textContent = s.resources.crystals.toLocaleString('ru-RU');
+    this._q('#mm-spices-value').textContent      = s.resources.spices.toLocaleString('ru-RU');
+    this._q('#mm-water-rings-value').textContent = s.resources.waterRings.toLocaleString('ru-RU');
 
     const loc = s.location;
     this._q('#mm-location-name').textContent  = loc.name.toUpperCase();
@@ -269,10 +277,10 @@ export class MainMenu {
   /* ── Events (главное меню) ──────────────────────────────── */
 
   _bindEvents() {
-    this._on('#mm-player-block', 'click', () => this.openProfile());
-    this._on('#mm-spices-btn',   'click', () => this.openSpicesInfo());
-    this._on('#mm-crystals-btn', 'click', () => this.openCrystalsInfo());
-    this._on('#mm-location-btn', 'click', () => this.openLocationMap());
+    this._on('#mm-player-block',    'click', () => this.openProfile());
+    this._on('#mm-spices-btn',      'click', () => this.openSpicesInfo());
+    this._on('#mm-water-rings-btn', 'click', () => this.openWaterRingsInfo());
+    this._on('#mm-location-btn',    'click', () => this.openLocationMap());
 
     const battleBtn = this._q('#mm-battle-btn');
     battleBtn.addEventListener('pointerdown',  () => battleBtn.classList.add('mm-pressed'));
@@ -353,11 +361,11 @@ export class MainMenu {
   }
 
   openSpicesInfo() {
-    this.openModal('Специи', `У тебя: ${menuState.resources.spices.toLocaleString('ru-RU')} ед.\n\nСпеции — основная валюта. Зарабатываются в бою: захватывай башни, контролируй узлы ресурсов.`);
+    this.openModal('Запасы специй', `У тебя: ${menuState.resources.spices.toLocaleString('ru-RU')} ед.\n\nЗапасы специй — мета-валюта аккаунта. Зарабатываются за каждый матч. В будущем можно тратить на улучшение карт и постройки.`);
   }
 
-  openCrystalsInfo() {
-    this.openModal('Кристаллы', `У тебя: ${menuState.resources.crystals.toLocaleString('ru-RU')} ед.\n\nКристаллы — редкая валюта за победы на высоком рейтинге.`);
+  openWaterRingsInfo() {
+    this.openModal('Водные кольца', `У тебя: ${menuState.resources.waterRings.toLocaleString('ru-RU')}\n\nВодные кольца — редкая метавалюта. Зарабатываются за победы. Трать в Каравaнном рынке (вкладка Рынок) на тайники с наградами.`);
   }
 
   openLocationMap() {
@@ -584,5 +592,56 @@ export class MainMenu {
     void card.offsetWidth;
     card.classList.add('mm-shaking');
     card.addEventListener('animationend', () => card.classList.remove('mm-shaking'), { once: true });
+  }
+
+  /* ── Bottom Navigation ──────────────────────────────────── */
+
+  _bindBottomNav() {
+    const nav = document.getElementById('mm-bottom-nav');
+    if (!nav) return;
+    nav.addEventListener('click', e => {
+      const tab = e.target.closest('.mm-nav-tab');
+      if (!tab) return;
+      this._switchToPage(parseInt(tab.dataset.page, 10));
+    });
+    this._initSwipe();
+  }
+
+  _switchToPage(idx) {
+    const track = document.getElementById('mm-pages-track');
+    const nav   = document.getElementById('mm-bottom-nav');
+    if (!track || !nav) return;
+
+    track.style.transform = `translateX(calc(-${idx} * 100vw))`;
+    nav.querySelectorAll('.mm-nav-tab').forEach((t, i) =>
+      t.classList.toggle('mm-nav-tab--active', i === idx)
+    );
+
+    if (idx === 2 && !this._marketPage) {
+      const mp = document.getElementById('mm-page-market');
+      if (mp) this._marketPage = new MarketPage(mp);
+    } else if (idx === 2 && this._marketPage) {
+      this._marketPage.refresh();
+    }
+
+    this._currentPage = idx;
+  }
+
+  _initSwipe() {
+    const viewport = this._el?.querySelector('.mm-pages-viewport');
+    if (!viewport) return;
+    let startX = 0, startY = 0;
+    viewport.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+    viewport.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.8) return;
+      const cur = this._currentPage ?? 0;
+      if (dx < 0 && cur < 4) this._switchToPage(cur + 1);
+      if (dx > 0 && cur > 0) this._switchToPage(cur - 1);
+    }, { passive: true });
   }
 }

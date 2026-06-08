@@ -27,6 +27,7 @@ import {
 import { DevConsole } from './dev-console.js';
 import { TutorialController } from './tutorial/tutorial-controller.js';
 import { TUTORIAL_LESSONS } from './tutorial/tutorial-data.js';
+import { processMatchReward } from './services/reward-service.js';
 
 // ── Scene setup ──────────────────────────────────────────────────────────────
 
@@ -285,6 +286,7 @@ function showWinScreen(bottomSideWon) {
   matchRunning = false;
   document.getElementById('win-stats').innerHTML = '';
   document.getElementById('win-rating-block').classList.add('hidden');
+  document.getElementById('win-reward-block')?.classList.add('hidden');
   document.getElementById('win-unlock-block').classList.add('hidden');
 
   const btnNext = document.getElementById('btn-win-next');
@@ -338,6 +340,8 @@ function showWinScreen(bottomSideWon) {
       _ratingApplied = true;
       const result = addMatchResult({ mode: '1p', winner: bottomSideWon === true });
       if (result) _showRatingBlock(result);
+      const reward = processMatchReward({ mode: '1p', winner: bottomSideWon === true, elapsedSeconds });
+      if (reward) _showRewardBlock(reward);
     }
   }
   winOverlay.classList.remove('hidden');
@@ -361,6 +365,20 @@ function _showRatingBlock(result) {
       ub.classList.remove('hidden');
     }
   }
+}
+
+function _showRewardBlock(reward) {
+  const block = document.getElementById('win-reward-block');
+  if (!block) return;
+  let html = `<div class="win-reward-row">`;
+  html += `+${reward.waterRingsDelta} 💧 Водных колец`;
+  html += ` · +${reward.metaSpicesDelta} 🌶 Специй`;
+  html += `</div>`;
+  if (reward.bonusLabel) {
+    html += `<div class="win-reward-streak">${reward.bonusLabel}</div>`;
+  }
+  block.innerHTML = html;
+  block.classList.remove('hidden');
 }
 
 function _buildStatsHtml(winner) {
