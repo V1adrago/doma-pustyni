@@ -135,7 +135,23 @@ const COLS = [
   { key: 'squadSize',      label: 'Отряд',       type: 'int',   min: 1,   max: 4   },
   { key: 'turnDelay',      label: 'Разворот',    type: 'float', min: 0,   max: 2   },
   { key: 'peelChance',     label: 'Пилинг',      type: 'float', min: 0,   max: 1   },
+  { key: 'deployDelay',    label: 'Деплой',      type: 'float', min: 0,   max: 5,  nested: 'deployRules' },
 ];
+
+// Get / set value — supports nested fields (e.g. deployRules.deployDelay)
+function getVal(col, def) {
+  if (col.nested) return def[col.nested]?.[col.key] ?? 0;
+  return def[resolveKey(col.key, def)];
+}
+
+function setVal(col, def, val) {
+  if (col.nested) {
+    if (!def[col.nested]) def[col.nested] = {};
+    def[col.nested][col.key] = val;
+  } else {
+    def[resolveKey(col.key, def)] = val;
+  }
+}
 
 const ICONS = { engineer:'⚙', scout:'⚡', swordsman:'⚔', assault:'🛡', archer:'🏹', spearman:'🔱', drone:'✦', heavy:'🪖', guard:'⛨' };
 const ARMOR_RU = { engineer:'Инженер', light:'Лёгкий', medium:'Средний', assault:'Штурм', ranged:'Дальний', antiHeavy:'АнтиТяж', heavy:'Тяжёлый', guard:'Охрана' };
@@ -199,8 +215,8 @@ function render() {
     // Editable columns
     for (const col of COLS) {
       const td  = document.createElement('td');
-      const key = resolveKey(col.key, def);
-      const val = def[key];
+      const val = getVal(col, def);
+      const origVal = getVal(col, orig);
 
       if (val === undefined || val === null) {
         td.innerHTML = '<span class="dash">—</span>';
@@ -211,16 +227,14 @@ function render() {
         inp.min   = col.min;
         inp.max   = col.max;
         inp.step  = col.type === 'int' ? '1' : '0.01';
-        inp.dataset.unit  = id;
-        inp.dataset.field = key;
         inp.addEventListener('input', () => {
           const v = parseFloat(inp.value);
           if (isNaN(v)) return;
-          curData[id][key] = v;
-          td.classList.toggle('changed', v !== orig[key]);
+          setVal(col, curData[id], v);
+          td.classList.toggle('changed', v !== origVal);
           updateDiff();
         });
-        if (orig[key] !== undefined && val !== orig[key]) td.classList.add('changed');
+        if (origVal !== undefined && val !== origVal) td.classList.add('changed');
         td.appendChild(inp);
       }
       tr.appendChild(td);
@@ -239,8 +253,7 @@ function updateDiff() {
   for (const [id, def] of Object.entries(curData)) {
     const orig = origData[id];
     for (const col of COLS) {
-      const key = resolveKey(col.key, def);
-      const c = def[key], o = orig[key];
+      const c = getVal(col, def), o = getVal(col, orig);
       if (c !== undefined && o !== undefined && c !== o)
         changes.push(`${def.name}: ${col.label} ${o}→${c}`);
     }
@@ -292,8 +305,8 @@ function exportExcel() {
   for (const [id, def] of Object.entries(curData)) {
     const row = [id, def.name];
     for (const col of COLS) {
-      const key = resolveKey(col.key, def);
-      row.push(def[key] ?? '');
+      const v = getVal(col, def);
+      row.push(v ?? '');
     }
     row.push(def.unitType ?? '', def.armorClass ?? '', def.factionOnly ?? '');
     rows.push(row);
@@ -335,14 +348,13 @@ function importExcel(e) {
         if (!id || !curData[id]) continue;
 
         for (const col of COLS) {
-          const key    = resolveKey(col.key, curData[id]);
           const colIdx = hdrs.indexOf(col.label);
           if (colIdx === -1) continue;
           const raw = row[colIdx];
           if (raw === '' || raw === undefined || raw === null) continue;
           const nv = parseFloat(raw);
           if (isNaN(nv)) continue;
-          if (nv !== curData[id][key]) { curData[id][key] = nv; count++; }
+          if (nv !== getVal(col, curData[id])) { setVal(col, curData[id], nv); count++; }
         }
       }
 

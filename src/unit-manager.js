@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Unit, LANE_X, RESOURCE_NODE_POS, tickVfx,
          spawnSlash, spawnThrust, spawnBolt, spawnImpact,
          spawnDronePulse, spawnEngineerRing, spawnShieldFlash } from './units.js';
+import { CARD_DEFS } from './cards.js';
 
 const TOWER_DATA = {
   player_left:    { x: -6, z:  11, y: 4.0, damage: 40, cooldown: 1.5, range: 5.2, side: 'player' },
@@ -103,6 +104,7 @@ export class UnitManager {
     this.units          = [];
     this._towerTimers   = Object.fromEntries(Object.keys(TOWER_DATA).map(id => [id, 0]));
     this._shotFlashes   = [];
+    this._pendingSpawns = [];
   }
 
   _createShotFlash(td, target) {
@@ -118,14 +120,67 @@ export class UnitManager {
   }
 
   spawn(cardId, side, lane, deployPoint = null) {
+    const delay = CARD_DEFS[cardId]?.deployRules?.deployDelay ?? 0;
+    if (delay > 0) {
+      const ghost = this._createGhost(side, deployPoint);
+      this._pendingSpawns.push({ cardId, side, lane, deployPoint, timer: delay, totalDelay: delay, ghost });
+      return null;
+    }
     const unit = new Unit(this.scene, cardId, side, lane, deployPoint);
     this.units.push(unit);
     return unit;
   }
 
+  _createGhost(side, deployPoint) {
+    const group = new THREE.Group();
+    const color = side === 'player' ? 0x44aaff : 0xff4422;
+
+    const ringGeo = new THREE.RingGeometry(0.4, 0.85, 18);
+    const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+    const ring    = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    group.add(ring);
+
+    const bodyGeo = new THREE.CylinderGeometry(0.28, 0.28, 1.9, 8);
+    const bodyMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.28 });
+    const body    = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 1.0;
+    group.add(body);
+
+    group.position.set(deployPoint?.x ?? 0, 0.04, deployPoint?.z ?? 0);
+    this.scene.add(group);
+    return group;
+  }
+
+  _destroyGhost(ghost) {
+    this.scene.remove(ghost);
+    for (const child of ghost.children) {
+      child.geometry.dispose();
+      child.material.dispose();
+    }
+  }
+
   update(delta, towerManager, onTowerDestroyed, onEngineerArrived) {
     const fm  = this.factionManager;
     const now = performance.now() / 1000;
+
+    // ── Pending (delayed) spawns ────────────────────────────────────────────
+    for (let i = this._pendingSpawns.length - 1; i >= 0; i--) {
+      const p = this._pendingSpawns[i];
+      p.timer -= delta;
+
+      // Pulse ring and body
+      const phase = (1 - p.timer / p.totalDelay) * Math.PI * 8;
+      p.ghost.children[0].material.opacity = 0.45 + 0.3  * Math.sin(phase);
+      p.ghost.children[1].material.opacity = 0.12 + 0.12 * Math.sin(phase * 0.5);
+
+      if (p.timer <= 0) {
+        this._destroyGhost(p.ghost);
+        const unit = new Unit(this.scene, p.cardId, p.side, p.lane, p.deployPoint);
+        this.units.push(unit);
+        this._pendingSpawns.splice(i, 1);
+      }
+    }
 
     // ── Tower shooting ──────────────────────────────────────────────────────
     for (const [towerId, td] of Object.entries(TOWER_DATA)) {
@@ -387,5 +442,7 @@ export class UnitManager {
       f.line.material.dispose();
     }
     this._shotFlashes = [];
+    for (const p of this._pendingSpawns) this._destroyGhost(p.ghost);
+    this._pendingSpawns = [];
   }
 }

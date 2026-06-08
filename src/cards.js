@@ -191,7 +191,7 @@ export const CARD_DEFS = {
     deployRules: {
       placementType: 'own_half',
       allowedLanes: ['left', 'center', 'right'],
-      deployDelay: 0,
+      deployDelay: 0.6,
       canPlaceBehindEnemies: true,
     },
   },
