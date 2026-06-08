@@ -1,7 +1,7 @@
 # ДОМА ПУСТЫНИ — Справочник кода
 
 > Карточная PvP стратегия (Three.js + Vite). Быстрый навигатор по файлам.
-> Версия: v1.9 — Фикс приоритета инженера
+> Версия: v2.4 — Wall-clock таймер, синхронизация онлайн-сессии
 
 ---
 
@@ -59,7 +59,14 @@ doma-pustyni/
     ├── services/
     │   ├── profile-service.js  ← localStorage: рейтинг, уровень, прогресс
     │   ├── auth-service.js     ← ЗАГЛУШКА авторизации (isOnlineAuthEnabled → false)
-    │   └── room-service.js     ← Управление комнатами (localStorage + точки WebSocket)
+    │   ├── network-service.js  ← Socket.IO клиент (комнаты, снэпшоты, события)
+    │   └── room-service.js     ← Управление комнатами (localStorage + URL-парсинг)
+    ├── tutorial/
+    │   ├── tutorial-controller.js ← TutorialController — sequential шаги, bot-скрипт, requireCardPlay
+    │   ├── tutorial-data.js       ← TUTORIAL_LESSONS (3 урока), UNIT_GUIDE, COUNTER_GUIDE, MENU_TOUR_STEPS
+    │   ├── tutorial-overlay.js    ← TutorialBattleHint — подсказка с паузой/кнопкой действия
+    │   ├── tutorial-overlay.css   ← CSS оверлея подсказки
+    │   └── tutorial-service.js    ← localStorage прогресс уроков (dp-tutorial-progress-v1)
     └── ui/                 ← UI-слой (главное меню v0.4, боевое меню v0.5)
         ├── menuState.js        ← Данные меню (игрок, ресурсы, локация, фракции, рейтинг)
         ├── mainMenu.js         ← MainMenu класс — рендер, события, модал
@@ -77,14 +84,15 @@ doma-pustyni/
 | Что | Где |
 |-----|-----|
 | Глобальное состояние матча | `elapsedSeconds`, `matchRunning`, `isPaused`, `gameConfig` |
-| Старт матча | `beginMatch()` — сброс + `isPaused=false` + `#ui-overlay` видим |
-| Пауза / снятие паузы | `pauseBattle()` / `resumeBattle()` — меняют флаг `isPaused` |
+| Wall-clock таймер | `_matchStartWallMs` (старт матча), `_totalPausedMs` (накопленная пауза), `_pauseStartMs` (начало текущей паузы) |
+| Старт матча | `beginMatch()` — сброс + инициализация wall-clock + `#ui-overlay` видим |
+| Пауза / снятие паузы | `pauseBattle()` / `resumeBattle()` — меняют `isPaused` + накапливают `_totalPausedMs` |
 | Экран победы | `showWinScreen(bottomSideWon)` |
 | Возврат в меню | `onGoToMenu()` — `matchRunning=false`, `isPaused=false`, форс-закрытие меню паузы |
 | Отрисовка руки | `renderHandUI(prefix, hand)` |
 | Клики по картам | `bindHandClicks(prefix)` |
-| Главный цикл | `requestAnimationFrame` → только если `matchRunning && !isPaused` → тик логики |
-| Режимы игры | `'1p'` (vs AI), `'2p'` (локально), `'ai'` (авто-тест) |
+| Главный цикл | `requestAnimationFrame` → `elapsedSeconds = (Date.now() - _matchStartWallMs - _totalPausedMs) / 1000` (не зависит от активности вкладки) |
+| Режимы игры | `'1p'` (vs AI), `'2p'` (локально), `'ai'` (авто-тест), `'online'` (Socket.IO), `'tutorial'` (обучение) |
 | Клавиатура | `Escape` → `battleMenu.handleEscape()`, `P` → toggle паузы без меню |
 
 ### `cards.js` (200 строк) — Карты и юниты
@@ -105,12 +113,12 @@ doma-pustyni/
 | scout | 220 | 1.60 | 32 | 16 | 2 | ground |
 | swordsman | 430 | 0.95 | 45 | 32 | 2 | ground |
 | assault | 680 | 0.75 | 42 | **95** | 3 | ground |
-| archer | 190 | 0.85 | 38/50 air | 18 | 3 | ground |
-| spearman | 320 | 0.85 | 35/65 vs тяж. | 18 | 3 | ground |
-| drone | 280 | 1.10 | 32 | 30 | 4 | air |
+| archer | 190 | 0.85 | 19 / 15 air | 9 | 3 | ground |
+| spearman | 320 | 0.85 | 35 (×бонус vs тяж.) | 18 | 3 | ground |
+| drone | 280 | 1.10 | 20 | 17 | 4 | air |
 | heavy | 900 | 0.50 | 60 | 45 | 5 | ground |
 | guard | 680 | 0.60 | 40 | 18 | 4 | **только Дом Чести** |
-| engineer | 140 | 1.00 | 0 | 0 | 2–4 | ground |
+| engineer | 140 | 0.90 | 0 | 0 | 2–4 | ground |
 
 ### `config.js` (14 строк) — Константы баланса
 ```js
@@ -299,6 +307,44 @@ new BattleMenu({ pauseGame, resumeGame, onSurrender, onExitToMenu, getMode, isMa
 - Фракционные табы: 'none' / 'honor' (Guard появляется только при 'honor')
 - Финиш: `onComplete(deck[], factionId)`
 
+### `services/network-service.js` — Socket.IO клиент
+| Функция | Что делает |
+|---------|-----------|
+| `connectNetwork()` | Подключается к серверу (dev: localhost:3000, prod: origin) |
+| `createOnlineRoom()` | Создать комнату, стать хостом |
+| `joinOnlineRoom(roomId)` | Войти в комнату как гость |
+| `setReady(roomId, ready)` | Отметить готовность |
+| `startOnlineMatch(roomId)` | Хост запускает матч |
+| `sendPlayCard(cmd)` | Отправить команду сыгранной карты |
+| `sendHostSnapshot(snapshot)` | Хост шлёт снэпшот состояния гостю (elapsed, unitCount, tower HP) |
+| `sendSurrender(roomId)` | Сдаться |
+| Callbacks | `onRoomState`, `onMatchStart`, `onOpponentAction`, `onHostSnapshot`, `onNetworkError` |
+
+### `tutorial/tutorial-controller.js` — TutorialController
+- Sequential очередь шагов (`_steps[]`, `_stepIdx`)
+- `_awaitingStep` — хинт открыт, игра на паузе, ждём нажатия кнопки
+- `_awaitingAction` — ждём сыгранной карты игроком (`requireCardPlay: true`)
+- `_topUpIfNeeded(cardIds)` — пополняет специи если не хватает на подсвеченные карты
+- `onCardPlayed(cardId, lane)` — вызывается при сыгрывании карты, двигает шаги вперёд
+- `update(delta, state)` — тикает bot-скрипт по `state.elapsed`
+
+### `tutorial/tutorial-data.js` — Данные уроков
+| Экспорт | Описание |
+|---------|---------|
+| `TUTORIAL_LESSONS` | 3 урока: lesson_1 (основы), lesson_2 (тактика), lesson_3 (полный бой) |
+| `UNIT_GUIDE` | Описания 9 юнитов: роль, сильные/слабые стороны, тактика |
+| `COUNTER_GUIDE` | Контры для 5 типов угроз |
+| `MENU_TOUR_STEPS` | 7 шагов тура по главному меню |
+
+Структура урока: `playerDeck`, `botScript` (время+карта+линия), `steps` (sequential шаги), `completionCondition`.
+Шаг: `{ title, text, highlightCards?, highlightHand?, requireCardPlay? }`.
+
+### `tutorial/tutorial-service.js` — Прогресс обучения
+- localStorage ключ: `dp-tutorial-progress-v1`
+- `markLessonDone(lessonId)` / `isLessonDone(lessonId)` — отметить/проверить урок
+- `markMenuTourDone()` / `isMenuTourDone()` — флаг тура по меню
+- `resetTutorialProgress()` — сбросить весь прогресс
+
 ### `services/profile-service.js` — Прогресс
 | Функция | Что делает |
 |---------|-----------|
@@ -438,24 +484,22 @@ tick()          play()          spawn()
 - `firebase.json`: rewrite `** → /index.html` — все маршруты отдают SPA
 - `dist/` собирается командой `npm run build` (проверено, 1.42s)
 
-### Чего нет (следующий этап)
+### Что реализовано дополнительно (v1.0+)
 
-| Функция | Что нужно добавить |
-|---------|-------------------|
-| Настоящий онлайн | WebSocket сервер (Node.js + Socket.IO) |
-| Два браузера видят друг друга в комнате | `socket.emit('join')`, `socket.on('player_joined')` |
-| Синхронизированный бой | Передача команд через сервер + snapshot состояния |
-| Авторизация | Firebase Auth / Supabase Auth вместо заглушек |
-| Рейтинг в облаке | Firebase Firestore / Supabase вместо localStorage |
+| Функция | Статус |
+|---------|--------|
+| WebSocket сервер (Socket.IO) | ✅ `server/index.js` — комнаты, relay play_card, host_snapshot |
+| Два браузера видят друг друга | ✅ Реальный Socket.IO, хост + гость, ready-статусы |
+| Синхронизированный бой | ✅ Передача команд + host_snapshot каждую секунду + hard-sync при дрейфе > 1.5 сек |
+| Публичный деплой | ✅ https://doma-pustyni.onrender.com (Render.com автодеплой) |
+| Авторизация | ❌ Заглушка (`isOnlineAuthEnabled = false`) |
+| Рейтинг в облаке | ❌ localStorage (только локально) |
 
-Точки подключения помечены комментарием `// В будущем` в `room-service.js`.
+### Текущие ограничения
 
-### Текущее ограничение — важно понимать
-
-Сейчас ссылка `/room/ABCD12` работает **только локально** (у одного человека).
-Чтобы друг открыл игру по ссылке — нужно сначала задеплоить (см. `DEPLOY.md`).
-Даже после деплоя — оба игрока будут видеть экран комнаты, но **не друг друга** (нет WebSocket сервера).
-Для реальной совместной игры нужен следующий этап — сервер.
+- **Авторизация** — `auth-service.js` возвращает заглушки. Игроки не идентифицированы.
+- **Рейтинг** — хранится в `localStorage`, не синхронизируется между устройствами.
+- **Сервер без persistence** — комнаты хранятся в памяти Node.js, при рестарте теряются.
 
 ---
 
@@ -497,6 +541,24 @@ cloudflared tunnel --url http://localhost:3000
 ---
 
 ## История версий
+
+### v2.4 — Wall-clock таймер: время не замерзает при скрытой вкладке
+
+**Проблема:** `elapsedSeconds` накапливался через `requestAnimationFrame` delta. Браузер замораживает rAF в неактивных вкладках → время матча останавливалось.
+
+**Решение:** `elapsedSeconds` теперь вычисляется через `Date.now()`:
+```js
+elapsedSeconds = (Date.now() - _matchStartWallMs - _totalPausedMs) / 1000;
+```
+Паузы (туториал, меню паузы) аккумулируются отдельно в `_totalPausedMs` — пауза не засчитывается в игровое время.
+
+**Онлайн-синхронизация:** гость при получении снэпшота от хоста автоматически корректирует свои wall-clock часы если дрейф превысил 1.5 сек.
+
+| Файл | Что изменилось |
+|------|----------------|
+| `src/main.js` | `_matchStartWallMs`, `_totalPausedMs`, `_pauseStartMs`; `pauseBattle`/`resumeBattle` накапливают паузу; `elapsedSeconds` = wall-clock; `onHostSnapshot` — hard-sync при дрейфе > 1.5 сек |
+
+---
 
 ### v2.3 — Синхронизированное обучение: пауза + ожидание действия
 
