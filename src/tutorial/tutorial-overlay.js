@@ -192,8 +192,7 @@ export class TutorialBattleHint {
       .addEventListener('click', () => this._dismiss());
   }
 
-  show({ title, text, pauseMode = false, onDismiss = null } = {}) {
-    // Отменяем предыдущие таймеры
+  show({ title, text, pauseMode = false, actionMode = false, autoDismissMs = 0, onDismiss = null } = {}) {
     this._clearTimers();
     this._onDismiss = onDismiss;
 
@@ -204,13 +203,16 @@ export class TutorialBattleHint {
     const progWrap = this._el.querySelector('.tut-battle-progress-wrap');
     const progBar  = this._el.querySelector('.tut-battle-progress-bar');
 
-    if (pauseMode) {
-      btn.textContent        = 'Понятно →';
+    if (pauseMode || actionMode) {
+      // Ручное закрытие — кнопка "Понятно" или "Сделать это"
+      btn.textContent        = actionMode ? 'Сделать это →' : 'Понятно →';
       progWrap.style.display = 'none';
       progBar.style.width    = '0%';
     } else {
-      // Авто-таймер: ~20 символов/сек, минимум 4с, максимум 12с
-      const ms = Math.min(12000, Math.max(4000, Math.ceil((text || '').length / 20) * 1000));
+      // Авто-таймер
+      const ms = autoDismissMs > 0
+        ? autoDismissMs
+        : Math.min(12000, Math.max(4000, Math.ceil((text || '').length / 20) * 1000));
       btn.textContent        = 'Пропустить';
       progWrap.style.display = 'block';
       progBar.style.width    = '0%';
