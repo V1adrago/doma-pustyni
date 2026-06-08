@@ -498,6 +498,66 @@ cloudflared tunnel --url http://localhost:3000
 
 ## История версий
 
+### v2.2 — Публичный деплой на Render.com
+
+**Публичная ссылка: https://doma-pustyni.onrender.com**
+
+Сервер (`server/index.js`) одновременно:
+- отдаёт игру (статика из `dist/`)
+- обрабатывает WebSocket-комнаты (Socket.IO)
+
+Игроку не нужно ничего запускать — просто открыть ссылку в браузере.
+
+**Изменения:**
+- `package.json` — добавлен скрипт `"start": "node server/index.js"` (Render его ищет)
+- `render.yaml` — конфиг деплоя: `buildCommand: npm install --include=dev && npm run build`, `startCommand: node server/index.js`
+- `.gitignore` — создан (исключает `node_modules/`, `dist/`)
+- `DEPLOY.md` — полная инструкция по деплою на Render
+
+**GitHub:** https://github.com/V1adrago/doma-pustyni (аккаунт V1adrago)
+
+**Важно — холодный старт:** бесплатный Render засыпает через 15 мин без посещений.
+Первый вход после паузы ~30-60 сек. Решение: UptimeRobot (бесплатно, пинг раз в 10 мин).
+
+| Файл | Что изменилось |
+|------|----------------|
+| `package.json` | Добавлен `"start"` скрипт |
+| `render.yaml` | НОВЫЙ — конфиг Render |
+| `.gitignore` | НОВЫЙ — исключает node_modules, dist |
+| `DEPLOY.md` | Полностью переписан под Render |
+
+---
+
+### v2.1 — Tutorial: 3 урока, прогресс обучения, мобильный вид
+
+**Структура уроков сжата с 5 до 3:**
+
+| ID | Название | Содержание |
+|----|----------|-----------|
+| `lesson_1` | Урок 1: Основы боя | Специи, рука карт, юниты, инженер, три линии, давление. Тихий бот, 55 сек |
+| `lesson_2` | Урок 2: Тактика и осада | Контры (стрелок, тяжёлый), связка башнелом (танк→башнелом→стрелок). Активный бот, 55 сек |
+| `lesson_3` | Урок 3: Первый бой | Полный бой против нормального AI без подсказок (`useNormalAI: true`, нет `steps`, конец = `matchEnd`) |
+
+**Прогресс в экране уроков** (`_renderLessons()` в `mainMenu.js`):
+- Блок `.tl-progress-block` с надписью «Прогресс обучения», счётчиком `X / 3` и полоской заполнения
+- Пройденный урок: зелёная рамка, иконка `✓` вместо номера (класс `.tl-item-done`, `.tl-num-done`)
+- Урок 3 — красная акцентная кнопка «⚔ В бой» (класс `.tl-start-btn-final`)
+
+**Мобильный вид экранов:** `#unit-guide-screen` и `#tutorial-lessons-screen` теперь центрируют контент в колонке `min(100%, 430px)` — как главное меню. Фон на весь экран, контент — мобильной ширины.
+
+**Исправления:**
+- Название «Учебные бои» → «Учебный бой» (в кнопке меню, заголовке экрана и шаге тура)
+- `list.parentNode.insertBefore(progBlock, list)` вместо `screen.insertBefore` (список уроков был дочерним элементом `.tl-layout`, а не `#tutorial-lessons-screen`)
+
+| Файл | Что изменилось |
+|------|----------------|
+| `src/tutorial/tutorial-data.js` | 3 урока вместо 5 — новые id, колоды, botScript, steps |
+| `src/ui/mainMenu.js` | `_renderLessons()` — прогресс-блок, `.tl-item-done`, `.tl-num-done`, кнопка «⚔ В бой» |
+| `src/ui/mainMenu.css` | `.tl-progress-block`, `.tl-progress-bar-*`, `.tl-item-done`, `.tl-num-done`, `.tl-start-btn-final`; `width: min(100%, 430px)` для `#unit-guide-screen` и `#tutorial-lessons-screen` |
+| `index.html` | «Учебные бои» → «Учебный бой» |
+
+---
+
 ### v1.9 — Фикс приоритета инженера
 
 **Файл:** `src/unit-manager.js`
