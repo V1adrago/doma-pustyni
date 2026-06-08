@@ -1,7 +1,7 @@
 # ДОМА ПУСТЫНИ — Справочник кода
 
 > Карточная PvP стратегия (Three.js + Vite). Быстрый навигатор по файлам.
-> Версия: v2.4 — Wall-clock таймер, синхронизация онлайн-сессии
+> Версия: v2.5 — Deploy delay, ghost-индикатор, обновлён Balance Editor
 
 ---
 
@@ -108,17 +108,17 @@ doma-pustyni/
 | `AI_DECK` | Состав колоды противника AI |
 
 **Юниты (CARD_DEFS):**
-| Карта | HP | Скор. | Урон | Урон по зд. | Цена | Тип |
-|-------|-----|------|------|-------------|------|-----|
-| scout | 220 | 1.60 | 32 | 16 | 2 | ground |
-| swordsman | 430 | 0.95 | 45 | 32 | 2 | ground |
-| assault | 680 | 0.75 | 42 | **95** | 3 | ground |
-| archer | 190 | 0.85 | 19 / 15 air | 9 | 3 | ground |
-| spearman | 320 | 0.85 | 35 (×бонус vs тяж.) | 18 | 3 | ground |
-| drone | 280 | 1.10 | 20 | 17 | 4 | air |
-| heavy | 900 | 0.50 | 60 | 45 | 5 | ground |
-| guard | 680 | 0.60 | 40 | 18 | 4 | **только Дом Чести** |
-| engineer | 140 | 0.90 | 0 | 0 | 2–4 | ground |
+| Карта | HP | Скор. | Урон | Урон по зд. | Цена | Деплой | Разворот | Тип |
+|-------|-----|------|------|-------------|------|--------|----------|-----|
+| scout | 220 | 1.60 | 32 | 16 | 2 | — | 0.15 с | ground |
+| swordsman | 430 | 0.95 | 45 | 32 | 2 | — | 0.25 с | ground |
+| assault | 680 | 0.75 | 42 | **95** | 3 | **0.4 с** | 0.45 с | ground |
+| archer | 190 | 0.85 | 19 / 15 air | 9 | 3 | — | 0.35 с | ground |
+| spearman | 320 | 0.85 | 35 (×бонус vs тяж.) | 18 | 3 | — | 0.30 с | ground |
+| drone | 280 | 1.10 | 20 | 17 | 4 | **0.5 с** | 0.20 с | air |
+| heavy | 900 | 0.50 | 60 | 45 | 5 | **0.6 с** | 0.70 с | ground |
+| guard | 680 | 0.60 | 40 | 18 | 4 | — | 0.40 с | **только Дом Чести** |
+| engineer | 140 | 0.90 | 0 | 0 | 2–4 | — | — | ground |
 
 ### `config.js` (14 строк) — Константы баланса
 ```js
@@ -199,19 +199,23 @@ Fog: 45-80 units, цвет 0x3a2a1a (пустынный)
 
 ### `unit-manager.js` — UnitManager (ИИ боя)
 **Порядок update() за тик:**
-1. Башни стреляют по ближайшему врагу в радиусе
-2. Каждый юнит: если рядом враг → атака; иначе если рядом башня → бить башню; иначе → двигаться
-3. Инженер идёт к центру → `onEngineerArrived(side)`
-4. Чистка мёртвых юнитов
+1. Тик отложенных спавнов (`_pendingSpawns`) — таймеры, пульс ghost, реальный спавн по истечении
+2. Башни стреляют по ближайшему врагу в радиусе
+3. Каждый юнит: если рядом враг → атака; иначе если рядом башня → бить башню; иначе → двигаться
+4. Инженер идёт к центру → `onEngineerArrived(side)`
+5. Чистка мёртвых юнитов
 
 | Метод | Действие |
 |-------|---------|
-| `spawn(cardId, side, lane)` | Создать юнита |
+| `spawn(cardId, side, lane, deployPoint)` | Если `deployDelay > 0` — ghost + очередь; иначе мгновенный спавн |
+| `_createGhost(side, deployPoint)` | Полупрозрачный кольцо + силуэт на позиции спавна (синий/красный) |
+| `_destroyGhost(ghost)` | Удалить ghost из сцены, dispose геометрии |
 | `update(delta, towerManager, onTowerDestroyed, onEngineerArrived)` | Главный тик |
-| `calcUnitDamage(attacker, target)` | Урон с учётом типов (archer vs air, spearman vs heavy) |
-| `reset()` | Очистить всех юнитов |
+| `reset()` | Очистить юнитов + pending spawns + ghost-мешы |
 
-**Shot Flash:** Жёлтая линия башня→цель, гаснет за 0.18 сек
+**Deploy delay:** задержка появления тяжёлых юнитов. Ghost пульсирует пока идёт таймер — игрок видит куда придёт юнит, но не может им пользоваться сразу.
+
+**Shot Flash:** жёлтая линия башня→цель, гаснет за 0.18 сек
 
 ### `units.js` — Unit (3D меши)
 | Геометрия | Тип |
@@ -431,6 +435,8 @@ tick()          play()          spawn()
 | Уровни прогрессии | `config/progression.js` | `PROGRESSION` |
 | Рейтинговая система | `services/profile-service.js` | `addMatchResult()` |
 | Тест баланса | `sim.mjs` | `runMatch()`, константы |
+| **Deploy delay юнита** | `src/cards.js` | `deployRules.deployDelay` + `src/unit-manager.js` `_pendingSpawns` |
+| **Ghost при задержке** | `src/unit-manager.js` | `_createGhost()` — цвет, геометрия, пульс |
 | Онлайн-комната (UI) | `room-screen.js` | `RoomScreen`, `show()`, `_renderPlayers()` |
 | Подключить WebSocket | `services/room-service.js` | Заменить localStorage-функции на socket-вызовы |
 | Подключить авторизацию | `services/auth-service.js` | Заменить заглушки на SDK (Firebase/Supabase) |
@@ -541,6 +547,32 @@ cloudflared tunnel --url http://localhost:3000
 ---
 
 ## История версий
+
+### v2.5 — Deploy delay: задержка появления тяжёлых юнитов
+
+Тяжёлые юниты теперь не появляются мгновенно — нужно думать на шаг вперёд, а не реагировать постфактум.
+
+**Механика:** `spawn()` в `UnitManager` проверяет `deployRules.deployDelay`. Если `> 0` — юнит добавляется в `_pendingSpawns` с таймером. На позиции появляется **ghost** (полупрозрачный силуэт + пульсирующее кольцо). По истечении таймера ghost удаляется и создаётся реальный юнит.
+
+**Задержки:**
+| Юнит | Деплой |
+|------|--------|
+| Башнелом | 0.4 сек |
+| Дюнный Сокол | 0.5 сек |
+| Латник Пустыни | 0.6 сек |
+| Остальные | мгновенно |
+
+**OnlineDeployPoint:** проверка показала, что `deployPoint: { x, z }` уже передаётся в `sendPlayCard` и применяется в `onOpponentAction`. Оба игрока видят ghost и юнита в одном и том же месте сцены.
+
+**Balance Editor:** добавлена колонка **Деплой** (`deployRules.deployDelay`). Поддержка вложенных полей через `getVal`/`setVal`.
+
+| Файл | Что изменилось |
+|------|----------------|
+| `src/unit-manager.js` | `_pendingSpawns[]`, `_createGhost()`, `_destroyGhost()`, тик в `update()`, очистка в `reset()`; импорт `CARD_DEFS` |
+| `src/cards.js` | `heavy.deployRules.deployDelay: 0.6` (было 0) |
+| `dev-balance.html` | Колонка «Деплой», функции `getVal(col, def)` / `setVal(col, def, val)` для вложенных полей |
+
+---
 
 ### v2.4 — Wall-clock таймер: время не замерзает при скрытой вкладке
 
