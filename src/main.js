@@ -84,10 +84,14 @@ onOpponentAction((cmd) => {
 onHostSnapshot((snap) => {
   if (!matchRunning || !isOnlineMatch || onlineRole !== 'guest') return;
 
-  // Soft drift check — log + UI warning on large divergence
-  const localElapsed = elapsedSeconds;
-  const timeDrift    = Math.abs(localElapsed - snap.elapsedSeconds);
-  const unitDrift    = Math.abs(unitManager.units.length - snap.unitCount);
+  const timeDrift = Math.abs(elapsedSeconds - snap.elapsedSeconds);
+  const unitDrift = Math.abs(unitManager.units.length - snap.unitCount);
+
+  // Hard-sync time if drift is significant (tab was hidden, etc.)
+  if (timeDrift > 1.5) {
+    _matchStartWallMs = Date.now() - (snap.elapsedSeconds * 1000) - _totalPausedMs;
+    elapsedSeconds    = snap.elapsedSeconds;
+  }
 
   const warn = document.getElementById('online-sync-warning');
   const severe = timeDrift > 5 || unitDrift > 4;
@@ -228,9 +232,12 @@ const roomScreen = new RoomScreen(startOnlineMatch, () => mainMenu.show());
 
 // ── Match state ───────────────────────────────────────────────────────────────
 
-let elapsedSeconds = 0;
-let matchRunning   = false;
-let isPaused       = false;
+let elapsedSeconds    = 0;
+let matchRunning      = false;
+let isPaused          = false;
+let _matchStartWallMs = 0;   // wall-clock ms when match started
+let _totalPausedMs    = 0;   // accumulated paused time
+let _pauseStartMs     = null; // wall-clock ms when current pause began
 let devSpeedMult   = 1.0;
 let _ratingApplied = false;
 let gameConfig     = {
@@ -458,11 +465,16 @@ const gameMenu = new GameMenu(config => {
 function pauseBattle() {
   if (!matchRunning || isPaused) return;
   isPaused = true;
+  _pauseStartMs = Date.now();
 }
 
 function resumeBattle() {
   if (!isPaused) return;
   isPaused = false;
+  if (_pauseStartMs !== null) {
+    _totalPausedMs += Date.now() - _pauseStartMs;
+    _pauseStartMs = null;
+  }
 }
 
 // ── Battle menu ───────────────────────────────────────────────────
@@ -639,6 +651,9 @@ function beginMatch() {
   aiSpawnTimerPlayer    = 0;
   _snapshotTimer        = 0;
   isPaused              = false;
+  _matchStartWallMs     = Date.now();
+  _totalPausedMs        = 0;
+  _pauseStartMs         = null;
 
   battleMenu.forceClose();
   document.getElementById('ui-overlay')?.classList.remove('ui-hidden');
@@ -727,7 +742,10 @@ function onGoToMenu() {
   enemyEconomy.reset();
   towerManager.resetAll();
   unitManager.reset();
-  elapsedSeconds = 0;
+  elapsedSeconds    = 0;
+  _matchStartWallMs = 0;
+  _totalPausedMs    = 0;
+  _pauseStartMs     = null;
   document.body.classList.remove('mode-2p');
   document.body.classList.remove('mode-ai');
   document.getElementById('player-panel')?.classList.remove('honor-faction');
@@ -1168,7 +1186,7 @@ function animate(timestamp) {
   resourceNode.position.y  = 1.6 + Math.sin(timestamp * 0.001) * 0.15;
 
   if (matchRunning && !isPaused) {
-    elapsedSeconds += delta;
+    elapsedSeconds = (Date.now() - _matchStartWallMs - _totalPausedMs) / 1000;
 
     if (elapsedSeconds >= CONFIG.matchDurationSeconds) {
       showWinScreen(null);
