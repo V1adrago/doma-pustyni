@@ -4,7 +4,7 @@
 export const CARD_DEFS = {
   engineer: {
     id: 'engineer',
-    name: 'Инженер Узла',
+    name: 'Инженер',
     squadSize: 1,
     unitType: 'ground',
     armorClass: 'engineer',
@@ -28,7 +28,7 @@ export const CARD_DEFS = {
   },
   scout: {
     id: 'scout',
-    name: 'Ищейка Барханов',
+    name: 'Ищейка',
     squadSize: 2,
     cost: 2,
     unitType: 'ground',
@@ -52,7 +52,7 @@ export const CARD_DEFS = {
   },
   swordsman: {
     id: 'swordsman',
-    name: 'Клинок Дома',
+    name: 'Клинок',
     squadSize: 3,
     cost: 2,
     unitType: 'ground',
@@ -100,7 +100,7 @@ export const CARD_DEFS = {
   },
   archer: {
     id: 'archer',
-    name: 'Песчаный Стрелок',
+    name: 'Стрелок',
     squadSize: 3,
     cost: 3,
     unitType: 'ground',
@@ -125,7 +125,7 @@ export const CARD_DEFS = {
   },
   spearman: {
     id: 'spearman',
-    name: 'Пикейщик Каравана',
+    name: 'Пикейщик',
     squadSize: 3,
     cost: 3,
     unitType: 'ground',
@@ -149,7 +149,7 @@ export const CARD_DEFS = {
   },
   drone: {
     id: 'drone',
-    name: 'Дюнный Сокол',
+    name: 'Сокол',
     squadSize: 1,
     cost: 4,
     unitType: 'air',
@@ -173,7 +173,7 @@ export const CARD_DEFS = {
   },
   heavy: {
     id: 'heavy',
-    name: 'Латник Пустыни',
+    name: 'Латник',
     squadSize: 1,
     cost: 5,
     unitType: 'ground',
@@ -197,7 +197,7 @@ export const CARD_DEFS = {
   },
   guard: {
     id: 'guard',
-    name: 'Гвардеец Чести',
+    name: 'Гвардеец',
     squadSize: 2,
     cost: 4,
     unitType: 'ground',
