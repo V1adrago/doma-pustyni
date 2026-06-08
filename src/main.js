@@ -615,12 +615,13 @@ function startTutorialBattle(lessonId) {
   enemyHand  = new Hand([...AI_DECK]);
 
   tutorialController = new TutorialController({
-    spawnUnit:       (cardId, side, lane, deployPoint) => unitManager.spawn(cardId, side, lane, deployPoint),
-    spendEnemy:      (cost)   => enemyEconomy.spend(cost),
-    playEnemyHand:   (cardId) => { const idx = enemyHand.cards.indexOf(cardId); if (idx >= 0) enemyHand.play(idx); },
-    getEnemyEconomy: ()       => enemyEconomy,
-    pauseGame:       pauseBattle,
-    resumeGame:      resumeBattle,
+    spawnUnit:        (cardId, side, lane, deployPoint) => unitManager.spawn(cardId, side, lane, deployPoint),
+    spendEnemy:       (cost)   => enemyEconomy.spend(cost),
+    playEnemyHand:    (cardId) => { const idx = enemyHand.cards.indexOf(cardId); if (idx >= 0) enemyHand.play(idx); },
+    getEnemyEconomy:  ()       => enemyEconomy,
+    getPlayerEconomy: ()       => playerEconomy,
+    pauseGame:        pauseBattle,
+    resumeGame:       resumeBattle,
     onLessonComplete: (_id) => { showWinScreen(true); },
   });
 

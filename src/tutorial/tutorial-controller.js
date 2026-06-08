@@ -111,6 +111,8 @@ export class TutorialController {
           // Снимаем паузу, ждём карту — выделение карт остаётся
           this._awaitingAction = true;
           this._cb.resumeGame();
+          // Страховка: если у игрока нет специй — дать на одну карту
+          this._topUpIfNeeded(step.highlightCards);
         } else {
           // Сразу следующий шаг (игра остаётся на паузе между шагами)
           this._stepIdx++;
@@ -122,6 +124,18 @@ export class TutorialController {
         }
       },
     });
+  }
+
+  // ── Spice top-up ─────────────────────────────────────────────────────────────
+
+  _topUpIfNeeded(cardIds) {
+    if (!cardIds?.length) return;
+    const eco = this._cb.getPlayerEconomy?.();
+    if (!eco) return;
+    const minCost = Math.min(...cardIds.map(id => getCardCost(id, eco.engineerStage ?? 0)));
+    if (!eco.canAfford(minCost)) {
+      eco.spices = Math.min(minCost, eco.spiceBank);
+    }
   }
 
   // ── Bot script ───────────────────────────────────────────────────────────────
