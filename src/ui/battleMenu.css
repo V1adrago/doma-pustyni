@@ -1,0 +1,504 @@
+/* ═══════════════════════════════════════════════════════
+   BATTLE MENU — Дома Пустыни
+   Внутриигровое меню: тёмная бронза, золото, военная панель
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Кнопка открытия меню (внутри #timer-bar) ─────────── */
+
+.bm-open-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  background: rgba(244, 181, 74, 0.08);
+  border: 1.5px solid rgba(244, 181, 74, 0.35);
+  border-radius: 7px;
+  cursor: pointer;
+  pointer-events: all;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  padding: 0;
+}
+
+.bm-open-btn:hover {
+  background: rgba(244, 181, 74, 0.18);
+  border-color: rgba(244, 181, 74, 0.72);
+}
+
+.bm-open-btn:active {
+  transform: scale(0.91);
+}
+
+/* Иконка паузы — два вертикальных прямоугольника */
+.bm-open-icon {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.bm-open-icon::before,
+.bm-open-icon::after {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 13px;
+  background: #F4B54A;
+  border-radius: 2px;
+}
+
+/* ── Overlay-фон ──────────────────────────────────────── */
+
+#battle-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+#battle-menu-overlay.bm-visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+#battle-menu-overlay.hidden {
+  display: none !important;
+}
+
+.bm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 2, 1, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+}
+
+/* ── Панель ───────────────────────────────────────────── */
+
+.bm-panel {
+  position: relative;
+  z-index: 1;
+  width: min(88vw, 480px);
+  background: linear-gradient(162deg, #1C160F 0%, #12100D 55%, #0D0B08 100%);
+  border: 1.5px solid rgba(244, 181, 74, 0.38);
+  border-radius: 18px;
+  padding: 26px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow:
+    0 0 0 1px rgba(244, 181, 74, 0.06) inset,
+    0 4px 60px rgba(0, 0, 0, 0.65),
+    0 0 90px rgba(244, 181, 74, 0.05);
+  transform: translateY(14px) scale(0.96);
+  transition: transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: 92vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Скролл без видимого scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 181, 74, 0.2) transparent;
+}
+
+.bm-panel::-webkit-scrollbar { width: 4px; }
+.bm-panel::-webkit-scrollbar-track { background: transparent; }
+.bm-panel::-webkit-scrollbar-thumb {
+  background: rgba(244, 181, 74, 0.2);
+  border-radius: 4px;
+}
+
+#battle-menu-overlay.bm-visible .bm-panel {
+  transform: translateY(0) scale(1);
+}
+
+/* Зернистый overlay — текстура песка */
+.bm-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+.bm-panel > * { position: relative; z-index: 1; }
+
+/* ── Шапка ────────────────────────────────────────────── */
+
+.bm-header {
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.bm-title-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.bm-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 5px;
+  color: #F4B54A;
+  text-transform: uppercase;
+  text-shadow: 0 0 22px rgba(244, 181, 74, 0.25);
+}
+
+/* Декоративная линия под заголовком */
+.bm-header::after {
+  content: '';
+  display: block;
+  margin: 12px auto 0;
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(244, 181, 74, 0.35), transparent);
+}
+
+/* Статус боя */
+.bm-status {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 3px 12px;
+  border-radius: 20px;
+}
+
+.bm-status-paused {
+  color: #F5E8C8;
+  background: rgba(244, 181, 74, 0.1);
+  border: 1px solid rgba(244, 181, 74, 0.3);
+}
+
+.bm-status-pvp {
+  color: #7ec8e8;
+  background: rgba(58, 159, 216, 0.1);
+  border: 1px solid rgba(58, 159, 216, 0.3);
+  animation: bmPvpPulse 2s ease-in-out infinite;
+}
+
+@keyframes bmPvpPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(58, 159, 216, 0.15); }
+  50%       { box-shadow: 0 0 10px rgba(58, 159, 216, 0.35); }
+}
+
+/* ── View-блоки ───────────────────────────────────────── */
+
+.bm-view {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.bm-view.hidden {
+  display: none;
+}
+
+/* ── Кнопки основного меню ────────────────────────────── */
+
+.bm-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s, box-shadow 0.15s, color 0.15s;
+  width: 100%;
+  text-align: left;
+  min-height: 54px;
+}
+
+.bm-btn:active {
+  transform: scale(0.97);
+}
+
+.bm-btn-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.bm-btn-label { flex: 1; }
+
+/* Продолжить бой — золото */
+.bm-btn-primary {
+  background: rgba(244, 181, 74, 0.12);
+  border: 1.5px solid rgba(244, 181, 74, 0.5);
+  color: #FFD67B;
+  box-shadow: 0 0 18px rgba(244, 181, 74, 0.07);
+}
+
+.bm-btn-primary:hover {
+  background: rgba(244, 181, 74, 0.22);
+  border-color: rgba(244, 181, 74, 0.85);
+  box-shadow: 0 0 26px rgba(244, 181, 74, 0.13);
+  color: #FFE09A;
+}
+
+/* Настройки */
+.bm-btn-secondary {
+  background: rgba(245, 232, 200, 0.04);
+  border: 1px solid rgba(245, 232, 200, 0.1);
+  color: #E1C58B;
+}
+
+.bm-btn-secondary:hover {
+  background: rgba(245, 232, 200, 0.09);
+  border-color: rgba(245, 232, 200, 0.22);
+  color: #F0D8A0;
+}
+
+/* Сдаться */
+.bm-btn-danger-soft {
+  background: rgba(142, 42, 18, 0.08);
+  border: 1px solid rgba(142, 42, 18, 0.3);
+  color: #C07055;
+}
+
+.bm-btn-danger-soft:hover {
+  background: rgba(142, 42, 18, 0.18);
+  border-color: rgba(142, 42, 18, 0.55);
+  color: #D88060;
+}
+
+/* Главное меню */
+.bm-btn-exit {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  color: #786050;
+  font-size: 13px;
+  min-height: 46px;
+  padding: 10px 18px;
+}
+
+.bm-btn-exit:hover {
+  background: rgba(255, 255, 255, 0.055);
+  border-color: rgba(255, 255, 255, 0.13);
+  color: #a09080;
+}
+
+/* Кнопка опасного подтверждения */
+.bm-btn-confirm-danger {
+  background: rgba(142, 42, 18, 0.18);
+  border: 1.5px solid rgba(142, 42, 18, 0.5);
+  color: #D07858;
+}
+
+.bm-btn-confirm-danger:hover {
+  background: rgba(142, 42, 18, 0.32);
+  border-color: rgba(142, 42, 18, 0.8);
+  color: #E09070;
+}
+
+/* Делитель */
+.bm-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(244, 181, 74, 0.18), transparent);
+  margin: 3px 0;
+  flex-shrink: 0;
+}
+
+/* ── Подзаголовок (настройки / подтверждение) ─────────── */
+
+.bm-sub-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.bm-back-btn {
+  background: none;
+  border: none;
+  color: #E1C58B;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 6px 4px;
+  opacity: 0.65;
+  transition: opacity 0.15s;
+  pointer-events: all;
+}
+
+.bm-back-btn:hover { opacity: 1; }
+
+.bm-sub-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #F5E8C8;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+/* ── Список настроек ──────────────────────────────────── */
+
+.bm-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bm-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 10px;
+  min-height: 52px;
+}
+
+.bm-setting-row-quality {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.bm-setting-label {
+  font-size: 14px;
+  color: #E1C58B;
+  font-weight: 500;
+}
+
+/* Переключатель ВКЛ/ВЫКЛ */
+.bm-toggle {
+  padding: 5px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  min-width: 64px;
+  text-align: center;
+  pointer-events: all;
+}
+
+.bm-toggle-on {
+  background: rgba(244, 181, 74, 0.14);
+  border: 1px solid rgba(244, 181, 74, 0.52);
+  color: #FFD67B;
+}
+
+.bm-toggle-off {
+  background: rgba(100, 90, 80, 0.08);
+  border: 1px solid rgba(100, 90, 80, 0.22);
+  color: #5a5040;
+}
+
+/* Группа качества */
+.bm-quality-group {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.bm-quality-btn {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #5a5040;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  pointer-events: all;
+}
+
+.bm-quality-btn:hover {
+  background: rgba(244, 181, 74, 0.08);
+  border-color: rgba(244, 181, 74, 0.28);
+  color: #b8a070;
+}
+
+.bm-quality-active {
+  background: rgba(244, 181, 74, 0.14) !important;
+  border-color: rgba(244, 181, 74, 0.58) !important;
+  color: #F4B54A !important;
+}
+
+/* ── Подтверждение (exit / surrender) ─────────────────── */
+
+.bm-confirm-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #F5E8C8;
+  letter-spacing: 0.5px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.bm-confirm-text {
+  font-size: 13px;
+  color: #786050;
+  text-align: center;
+  line-height: 1.65;
+  margin-bottom: 18px;
+  padding: 0 4px;
+}
+
+.bm-confirm-actions {
+  display: flex;
+  gap: 9px;
+}
+
+.bm-confirm-actions .bm-btn {
+  flex: 1;
+  justify-content: center;
+  min-height: 52px;
+}
+
+/* ── Landscape / маленькая высота ─────────────────────── */
+
+@media (max-height: 580px) and (orientation: landscape) {
+  .bm-panel {
+    padding: 14px 18px 16px;
+    max-height: 96vh;
+  }
+
+  .bm-header { margin-bottom: 10px; }
+  .bm-header::after { margin-top: 8px; }
+  .bm-title { font-size: 14px; letter-spacing: 4px; }
+
+  .bm-view { gap: 6px; }
+
+  .bm-btn {
+    min-height: 46px;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  .bm-btn-exit { min-height: 40px; }
+}
+
+/* ── Tablet / Desktop ─────────────────────────────────── */
+
+@media (min-width: 768px) {
+  .bm-panel {
+    width: min(460px, 90vw);
+    padding: 30px 28px 26px;
+  }
+
+  .bm-btn { font-size: 15px; }
+}

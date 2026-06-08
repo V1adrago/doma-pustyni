@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 2200" width="1600" height="2200">
+  <defs>
+    <linearGradient id="goldStroke" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#F7D27A"/>
+      <stop offset="50%" stop-color="#F4B54A"/>
+      <stop offset="100%" stop-color="#C98128"/>
+    </linearGradient>
+    <linearGradient id="panelFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#17120D"/>
+      <stop offset="100%" stop-color="#0E0B08"/>
+    </linearGradient>
+    <linearGradient id="heroFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#6E3416"/>
+      <stop offset="100%" stop-color="#371B0A"/>
+    </linearGradient>
+    <linearGradient id="activeCardFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#8E2A12"/>
+      <stop offset="100%" stop-color="#2D130B"/>
+    </linearGradient>
+    <linearGradient id="lockedCardFill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#3A4350"/>
+      <stop offset="100%" stop-color="#151A20"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <style>
+      .title{font-family:'Georgia',serif;font-weight:700;fill:#F5E8C8}
+      .label{font-family:'Georgia',serif;font-weight:600;fill:#F4E3BC}
+      .small{font-family:'Arial',sans-serif;fill:#E8D29A}
+      .num{font-family:'Georgia',serif;font-weight:700;fill:#F5E8C8}
+      .stroke{stroke:url(#goldStroke);stroke-width:4}
+      .panel{fill:url(#panelFill);stroke:url(#goldStroke);stroke-width:3}
+    </style>
+
+    <!-- Shield emblem -->
+    <symbol id="shield-badge" viewBox="0 0 220 260">
+      <path d="M110 8 L204 42 L192 178 Q190 214 110 252 Q30 214 28 178 L16 42 Z" fill="#5E1D10" stroke="url(#goldStroke)" stroke-width="5"/>
+      <path d="M110 26 L184 54 L176 170 Q175 197 110 233 Q45 197 44 170 L36 54 Z" fill="#7B2512" opacity="0.9"/>
+      <g fill="none" stroke="#F1C76C" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M110 72 L110 140"/>
+        <path d="M70 92 Q110 114 150 92"/>
+        <path d="M78 122 L110 152 L142 122"/>
+        <path d="M90 72 L70 112"/>
+        <path d="M130 72 L150 112"/>
+      </g>
+      <path d="M62 182 H158 V236 H62 Z" fill="#24140D" stroke="url(#goldStroke)" stroke-width="4"/>
+      <text x="110" y="220" text-anchor="middle" class="num" font-size="60">12</text>
+    </symbol>
+
+    <!-- Player panel -->
+    <symbol id="top-player-panel" viewBox="0 0 760 220">
+      <rect x="10" y="10" rx="26" ry="26" width="740" height="200" class="panel"/>
+      <use href="#shield-badge" x="0" y="-10" width="180" height="210"/>
+      <text x="220" y="78" class="title" font-size="54">Игрок</text>
+      <text x="220" y="132" class="label" font-size="38">Дом Чести</text>
+      <rect x="220" y="158" width="270" height="24" rx="12" fill="#2A1B11" stroke="#9D6B27" stroke-width="2"/>
+      <rect x="220" y="158" width="180" height="24" rx="12" fill="#E3B55D"/>
+      <text x="520" y="178" class="small" font-size="30">1250 / 2000</text>
+    </symbol>
+
+    <!-- Resources panel -->
+    <symbol id="top-resources-panel" viewBox="0 0 700 150">
+      <rect x="10" y="10" rx="24" ry="24" width="680" height="130" class="panel"/>
+      <g>
+        <circle cx="90" cy="72" r="20" fill="#D9871C"/>
+        <circle cx="116" cy="52" r="18" fill="#F0A52C"/>
+        <circle cx="126" cy="84" r="16" fill="#C86A13"/>
+        <text x="180" y="66" class="num" font-size="38">4 250</text>
+        <text x="180" y="102" class="small" font-size="30">Специи</text>
+      </g>
+      <g>
+        <polygon points="430,42 462,72 444,114 408,110 392,68" fill="#1DB67D"/>
+        <polygon points="430,42 462,72 444,114 408,110 392,68" fill="none" stroke="#8AF1C7" stroke-width="3"/>
+        <text x="520" y="66" class="num" font-size="38">560</text>
+        <text x="520" y="102" class="small" font-size="30">Кристаллы</text>
+      </g>
+    </symbol>
+
+    <!-- Small diamond -->
+    <symbol id="decor-diamond" viewBox="0 0 64 64">
+      <polygon points="32,6 58,32 32,58 6,32" fill="#5E3A18" stroke="url(#goldStroke)" stroke-width="4"/>
+      <polygon points="32,20 44,32 32,44 20,32" fill="#E1B65E" opacity="0.8"/>
+    </symbol>
+
+    <!-- Main CTA diamond -->
+    <symbol id="battle-diamond" viewBox="0 0 520 520">
+      <polygon points="260,20 500,260 260,500 20,260" fill="url(#heroFill)" stroke="url(#goldStroke)" stroke-width="8" filter="url(#glow)"/>
+      <polygon points="260,44 476,260 260,476 44,260" fill="none" stroke="#FFD67B" stroke-width="2" opacity="0.7"/>
+      <g fill="none" stroke="#F1C76C" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" transform="translate(260 150) scale(0.9) translate(-40 -40)">
+        <path d="M40 8 L40 60"/>
+        <path d="M8 26 Q40 44 72 26"/>
+        <path d="M16 48 L40 72 L64 48"/>
+      </g>
+      <text x="260" y="310" text-anchor="middle" class="title" font-size="108">В БОЙ</text>
+      <line x1="170" y1="370" x2="350" y2="370" stroke="#E1B65E" stroke-width="4"/>
+      <polygon points="260,355 273,370 260,385 247,370" fill="#E1B65E"/>
+    </symbol>
+
+    <!-- Secondary button -->
+    <symbol id="secondary-button" viewBox="0 0 820 150">
+      <rect x="12" y="12" rx="24" ry="24" width="796" height="126" fill="#29150D" stroke="url(#goldStroke)" stroke-width="5" filter="url(#softGlow)"/>
+      <rect x="26" y="26" rx="18" ry="18" width="768" height="98" fill="none" stroke="#F6D07B" stroke-width="1.5" opacity="0.65"/>
+      <rect x="86" y="54" width="36" height="48" rx="4" fill="#F3E1B8"/>
+      <rect x="114" y="58" width="36" height="48" rx="4" fill="#F3E1B8" opacity="0.9"/>
+      <text x="430" y="92" text-anchor="middle" class="title" font-size="66">Коллекция карт</text>
+    </symbol>
+
+    <!-- Active faction card -->
+    <symbol id="faction-card-active" viewBox="0 0 280 420">
+      <rect x="10" y="10" rx="22" ry="22" width="260" height="400" fill="url(#activeCardFill)" stroke="url(#goldStroke)" stroke-width="5" filter="url(#softGlow)"/>
+      <rect x="20" y="20" rx="18" ry="18" width="240" height="380" fill="none" stroke="#FFDA82" stroke-width="1.4" opacity="0.5"/>
+      <g fill="none" stroke="#F1C76C" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" transform="translate(140 70) scale(1.2) translate(-40 -40)">
+        <path d="M40 8 L40 60"/>
+        <path d="M8 26 Q40 44 72 26"/>
+        <path d="M16 48 L40 72 L64 48"/>
+      </g>
+      <polygon points="52,294 118,220 154,232 106,326" fill="#180B07" opacity="0.55"/>
+      <circle cx="118" cy="212" r="18" fill="#2A120D" opacity="0.8"/>
+      <text x="140" y="345" text-anchor="middle" class="title" font-size="34">ДОМ</text>
+      <text x="140" y="386" text-anchor="middle" class="title" font-size="34">ЧЕСТИ</text>
+    </symbol>
+
+    <!-- Locked faction card -->
+    <symbol id="faction-card-locked" viewBox="0 0 280 420">
+      <rect x="10" y="10" rx="22" ry="22" width="260" height="400" fill="url(#lockedCardFill)" stroke="#57606C" stroke-width="4"/>
+      <rect x="20" y="20" rx="18" ry="18" width="240" height="380" fill="none" stroke="#BBC3D0" stroke-width="1" opacity="0.25"/>
+      <circle cx="140" cy="84" r="32" fill="#26303A" stroke="#A8AEB8" stroke-width="2" opacity="0.9"/>
+      <line x1="40" y1="60" x2="240" y2="340" stroke="#C3C8CF" stroke-width="4" opacity="0.5"/>
+      <line x1="240" y1="60" x2="40" y2="340" stroke="#C3C8CF" stroke-width="4" opacity="0.5"/>
+      <use href="#lock-badge" x="102" y="176" width="76" height="76"/>
+      <text x="140" y="332" text-anchor="middle" class="title" font-size="30" fill="#E3E5E8">ДОМ</text>
+      <text x="140" y="370" text-anchor="middle" class="title" font-size="30" fill="#E3E5E8">ЖЕЛЕЗА</text>
+    </symbol>
+
+    <!-- Lock badge -->
+    <symbol id="lock-badge" viewBox="0 0 76 76">
+      <polygon points="38,4 72,38 38,72 4,38" fill="#1A1B20" stroke="#CFD2D8" stroke-width="3"/>
+      <rect x="26" y="34" width="24" height="18" rx="4" fill="#CFD2D8"/>
+      <path d="M30 34 V28 C30 22 34 18 38 18 C42 18 46 22 46 28 V34" fill="none" stroke="#CFD2D8" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- Rating pill -->
+    <symbol id="rating-pill" viewBox="0 0 420 110">
+      <rect x="10" y="10" rx="24" ry="24" width="400" height="90" fill="#26150D" stroke="url(#goldStroke)" stroke-width="3"/>
+      <rect x="60" y="35" width="12" height="32" fill="#E1B65E"/>
+      <rect x="82" y="24" width="12" height="43" fill="#E1B65E"/>
+      <rect x="104" y="45" width="12" height="22" fill="#E1B65E"/>
+      <text x="240" y="67" text-anchor="middle" class="title" font-size="42">Рейтинг</text>
+    </symbol>
+  </defs>
+
+  <!-- Preview / layout board -->
+  <rect width="1600" height="2200" fill="#090705"/>
+  <text x="800" y="60" text-anchor="middle" class="title" font-size="42">SVG UI kit — Песчаный аванпост</text>
+  <text x="800" y="100" text-anchor="middle" class="small" font-size="24">Ниже — готовые векторные блоки для быстрой вставки в вёрстку</text>
+
+  <use href="#top-player-panel" x="40" y="140" width="760" height="220"/>
+  <use href="#top-resources-panel" x="840" y="170" width="700" height="150"/>
+  <use href="#decor-diamond" x="768" y="390" width="64" height="64"/>
+  <use href="#battle-diamond" x="530" y="470" width="540" height="540"/>
+  <use href="#secondary-button" x="390" y="1060" width="820" height="150"/>
+  <use href="#faction-card-active" x="180" y="1290" width="280" height="420"/>
+  <use href="#faction-card-locked" x="500" y="1290" width="280" height="420"/>
+  <use href="#faction-card-locked" x="820" y="1290" width="280" height="420"/>
+  <use href="#faction-card-locked" x="1140" y="1290" width="280" height="420"/>
+  <use href="#rating-pill" x="590" y="1780" width="420" height="110"/>
+
+  <text x="120" y="2040" class="title" font-size="26">ID символов:</text>
+  <text x="120" y="2080" class="small" font-size="22">shield-badge, top-player-panel, top-resources-panel, decor-diamond, battle-diamond, secondary-button, faction-card-active, faction-card-locked, lock-badge, rating-pill</text>
+</svg>

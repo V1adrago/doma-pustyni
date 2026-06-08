@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚔ Balance Editor — Дома Пустыни</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:       #0e0b08;
+  --panel:    #1a140e;
+  --border:   #3a2a1a;
+  --gold:     #c8963a;
+  --text:     #e8d5b8;
+  --muted:    #7a6a55;
+  --changed:  #3a2800;
+  --chg-text: #ffd060;
+  --green:    #44aa55;
+  --red:      #cc4422;
+  --blue:     #4488cc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; min-height: 100vh; }
+
+/* ── Header ── */
+header {
+  background: var(--panel);
+  border-bottom: 2px solid var(--gold);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 { color: var(--gold); font-size: 17px; font-weight: 700; letter-spacing: 1px; margin-right: auto; }
+.badge { background: #3a1a0a; color: #ff8844; border: 1px solid #ff8844; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+
+/* ── Buttons ── */
+.btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: border-color .15s, color .15s; }
+.btn:hover { border-color: var(--gold); color: var(--gold); }
+.btn-save { border-color: var(--green); color: var(--green); font-weight: 700; }
+.btn-save:hover { background: #1a3a1a; }
+.btn-save:disabled { opacity: .4; cursor: not-allowed; border-color: var(--border); color: var(--muted); }
+.btn-reset { color: var(--muted); }
+
+/* ── Diff banner ── */
+#diff-banner { background: #2a1a00; border-bottom: 1px solid var(--gold); padding: 8px 20px; color: var(--chg-text); font-size: 12px; display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Table ── */
+.table-wrap { overflow-x: auto; padding: 0 0 24px; }
+table { border-collapse: collapse; white-space: nowrap; width: 100%; }
+
+thead th {
+  background: var(--panel);
+  color: var(--gold);
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+thead th.info { color: var(--muted); }
+
+tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
+tbody tr:hover { background: rgba(200,150,58,.06); }
+
+td { border: 1px solid var(--border); padding: 5px 8px; text-align: center; vertical-align: middle; }
+td.col-name { text-align: left; font-weight: 600; min-width: 170px; padding-left: 12px; }
+td.col-type { color: var(--muted); font-size: 11px; min-width: 90px; }
+
+input[type=number] {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: center;
+  width: 72px;
+  font-size: 13px;
+  padding: 2px 4px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+input[type=number]:focus { background: rgba(200,150,58,.12); border-radius: 3px; }
+
+td.changed { background: var(--changed); }
+td.changed input { color: var(--chg-text); font-weight: 700; }
+.dash { color: var(--muted); }
+
+/* ── Status toast ── */
+#status { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--gold); border-radius: 6px; padding: 10px 18px; font-size: 13px; display: none; z-index: 200; }
+#status.ok  { border-color: var(--green); color: var(--green); }
+#status.err { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔ BALANCE EDITOR</h1>
+  <span class="badge">DEV ONLY</span>
+  <button class="btn" onclick="exportExcel()">📤 Экспорт .xlsx</button>
+  <input type="file" id="file-in" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+  <button class="btn" onclick="document.getElementById('file-in').click()">📥 Импорт .xlsx</button>
+  <button class="btn btn-reset" onclick="resetChanges()">↺ Сбросить</button>
+  <button class="btn btn-save" id="btn-save" onclick="saveToServer()" disabled>💾 Сохранить в cards.js</button>
+</header>
+
+<div id="diff-banner"></div>
+
+<div class="table-wrap">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div id="status"></div>
+
+<script>
+// ── Column definitions ────────────────────────────────────────────────────────
+
+const COLS = [
+  { key: 'cost',           label: 'Цена',       type: 'int',   min: 1,   max: 10  },
+  { key: 'hp',             label: 'HP',          type: 'int',   min: 1,   max: 9999 },
+  { key: 'speed',          label: 'Скорость',    type: 'float', min: 0.1, max: 5   },
+  { key: 'attackDamage',   label: 'Урон',        type: 'float', min: 0,   max: 999 },
+  { key: 'airDamage',      label: '+Возд.',      type: 'float', min: 0,   max: 999, optional: true },
+  { key: 'buildingDamage', label: 'Урон зд.',    type: 'float', min: 0,   max: 999 },
+  { key: 'attackCooldown', label: 'Кулдаун',     type: 'float', min: 0.1, max: 10  },
+  { key: 'range',          label: 'Дальность',   type: 'float', min: 0,   max: 20  },
+  { key: 'squadSize',      label: 'Отряд',       type: 'int',   min: 1,   max: 4   },
+  { key: 'turnDelay',      label: 'Разворот',    type: 'float', min: 0,   max: 2   },
+  { key: 'peelChance',     label: 'Пилинг',      type: 'float', min: 0,   max: 1   },
+];
+
+const ICONS = { engineer:'⚙', scout:'⚡', swordsman:'⚔', assault:'🛡', archer:'🏹', spearman:'🔱', drone:'✦', heavy:'🪖', guard:'⛨' };
+const ARMOR_RU = { engineer:'Инженер', light:'Лёгкий', medium:'Средний', assault:'Штурм', ranged:'Дальний', antiHeavy:'АнтиТяж', heavy:'Тяжёлый', guard:'Охрана' };
+const TYPE_RU  = { ground:'Наземный', air:'Воздушный' };
+
+let origData = null;
+let curData  = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  try {
+    const res  = await fetch('/api/dev/units');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    origData = deep(json.data);
+    curData  = deep(json.data);
+    render();
+  } catch(e) {
+    showStatus('Ошибка загрузки: ' + e.message, 'err');
+  }
+}
+
+function deep(o) { return JSON.parse(JSON.stringify(o)); }
+
+// Resolve the actual key for "cost" (engineer uses baseCost)
+function costKey(def) { return def.cost !== undefined ? 'cost' : 'baseCost'; }
+
+function resolveKey(colKey, def) { return colKey === 'cost' ? costKey(def) : colKey; }
+
+// ── Render ────────────────────────────────────────────────────────────────────
+
+function render() {
+  // Header
+  document.getElementById('thead').innerHTML =
+    `<tr><th class="info">Юнит</th><th class="info">Тип / Броня</th>` +
+    COLS.map(c => `<th>${c.label}</th>`).join('') +
+    `</tr>`;
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  for (const [id, def] of Object.entries(curData)) {
+    const orig = origData[id];
+    const tr   = document.createElement('tr');
+    tr.dataset.id = id;
+
+    // Name
+    const tdN = document.createElement('td');
+    tdN.className = 'col-name';
+    tdN.textContent = `${ICONS[id] ?? ''} ${def.name}`;
+    tr.appendChild(tdN);
+
+    // Type
+    const tdT = document.createElement('td');
+    tdT.className = 'col-type';
+    tdT.textContent = `${TYPE_RU[def.unitType] ?? def.unitType} / ${ARMOR_RU[def.armorClass] ?? def.armorClass}`;
+    if (def.factionOnly) tdT.textContent += ` ★`;
+    tr.appendChild(tdT);
+
+    // Editable columns
+    for (const col of COLS) {
+      const td  = document.createElement('td');
+      const key = resolveKey(col.key, def);
+      const val = def[key];
+
+      if (val === undefined || val === null) {
+        td.innerHTML = '<span class="dash">—</span>';
+      } else {
+        const inp = document.createElement('input');
+        inp.type  = 'number';
+        inp.value = val;
+        inp.min   = col.min;
+        inp.max   = col.max;
+        inp.step  = col.type === 'int' ? '1' : '0.01';
+        inp.dataset.unit  = id;
+        inp.dataset.field = key;
+        inp.addEventListener('input', () => {
+          const v = parseFloat(inp.value);
+          if (isNaN(v)) return;
+          curData[id][key] = v;
+          td.classList.toggle('changed', v !== orig[key]);
+          updateDiff();
+        });
+        if (orig[key] !== undefined && val !== orig[key]) td.classList.add('changed');
+        td.appendChild(inp);
+      }
+      tr.appendChild(td);
+    }
+
+    tbody.appendChild(tr);
+  }
+
+  updateDiff();
+}
+
+// ── Diff banner ───────────────────────────────────────────────────────────────
+
+function updateDiff() {
+  const changes = [];
+  for (const [id, def] of Object.entries(curData)) {
+    const orig = origData[id];
+    for (const col of COLS) {
+      const key = resolveKey(col.key, def);
+      const c = def[key], o = orig[key];
+      if (c !== undefined && o !== undefined && c !== o)
+        changes.push(`${def.name}: ${col.label} ${o}→${c}`);
+    }
+  }
+
+  const banner = document.getElementById('diff-banner');
+  if (changes.length === 0) {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+    const preview = changes.slice(0, 6).join('  |  ');
+    banner.textContent = `✎ ${changes.length} изменений  —  ${preview}${changes.length > 6 ? '  …ещё ' + (changes.length - 6) : ''}`;
+  }
+
+  document.getElementById('btn-save').disabled = changes.length === 0;
+}
+
+function resetChanges() {
+  curData = deep(origData);
+  render();
+}
+
+// ── Save to server ────────────────────────────────────────────────────────────
+
+async function saveToServer() {
+  showStatus('Сохранение…', null);
+  try {
+    const res  = await fetch('/api/dev/units', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(curData),
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    origData = deep(curData);
+    render();
+    showStatus('✓ Сохранено в cards.js', 'ok');
+  } catch(e) {
+    showStatus('Ошибка: ' + e.message, 'err');
+  }
+}
+
+// ── Excel Export ──────────────────────────────────────────────────────────────
+
+function exportExcel() {
+  const headers = ['ID', 'Название', ...COLS.map(c => c.label), 'Тип', 'Класс брони', 'Только фракция'];
+  const rows = [headers];
+
+  for (const [id, def] of Object.entries(curData)) {
+    const row = [id, def.name];
+    for (const col of COLS) {
+      const key = resolveKey(col.key, def);
+      row.push(def[key] ?? '');
+    }
+    row.push(def.unitType ?? '', def.armorClass ?? '', def.factionOnly ?? '');
+    rows.push(row);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Column widths
+  ws['!cols'] = headers.map((_, ci) => ({
+    wch: Math.max(...rows.map(r => String(r[ci] ?? '').length)) + 2
+  }));
+  // Freeze first row
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Balance');
+  XLSX.writeFile(wb, 'doma-pustyni-balance.xlsx');
+  showStatus('✓ Файл скачан', 'ok');
+}
+
+// ── Excel Import ──────────────────────────────────────────────────────────────
+
+function importExcel(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const wb   = XLSX.read(ev.target.result, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      if (rows.length < 2) { showStatus('Пустой файл', 'err'); return; }
+
+      const hdrs = rows[0];
+      let count  = 0;
+
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        const id  = row[hdrs.indexOf('ID')] ?? row[hdrs.indexOf('id')];
+        if (!id || !curData[id]) continue;
+
+        for (const col of COLS) {
+          const key    = resolveKey(col.key, curData[id]);
+          const colIdx = hdrs.indexOf(col.label);
+          if (colIdx === -1) continue;
+          const raw = row[colIdx];
+          if (raw === '' || raw === undefined || raw === null) continue;
+          const nv = parseFloat(raw);
+          if (isNaN(nv)) continue;
+          if (nv !== curData[id][key]) { curData[id][key] = nv; count++; }
+        }
+      }
+
+      e.target.value = '';
+      if (count === 0) {
+        showStatus('Нет изменений', null);
+      } else {
+        render();
+        showStatus(`✓ Импортировано ${count} изменений`, 'ok');
+      }
+    } catch(err) {
+      showStatus('Ошибка импорта: ' + err.message, 'err');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── Status toast ──────────────────────────────────────────────────────────────
+
+let _t = null;
+function showStatus(msg, type) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = type || '';
+  el.style.display = 'block';
+  clearTimeout(_t);
+  _t = setTimeout(() => el.style.display = 'none', 3500);
+}
+
+init();
+</script>
+</body>
+</html>

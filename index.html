@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Дома Пустыни — прототип</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Онлайн: предупреждение о нестабильной синхронизации -->
+  <div id="online-sync-warning" class="hidden"></div>
+
+  <div id="ui-overlay" class="ui-hidden">
+
+    <!-- Таймер -->
+    <div id="timer-bar">
+      <button id="btn-battle-menu" class="bm-open-btn" aria-label="Меню боя" title="Меню (Esc)">
+        <span class="bm-open-icon" aria-hidden="true"></span>
+      </button>
+      <span id="match-status">БОЙ</span>
+      <span id="timer">3:00</span>
+      <span id="match-location-label"></span>
+    </div>
+
+    <!-- Панель игрока -->
+    <div id="player-panel" class="panel">
+      <div class="panel-title player-color" id="player-panel-title">▲ Игрок</div>
+      <div class="spice-row">
+        <span class="spice-icon">🌶</span>
+        <span id="player-spices">5</span>
+        <span class="spice-sep">/</span>
+        <span id="player-bank">10</span>
+        <span class="spice-label">специй</span>
+      </div>
+      <div class="income-row">Доход: <span id="player-income">24</span> /мин</div>
+      <div class="income-row">Инженер: <span id="player-engineer-info">—</span></div>
+      <div class="tower-list">
+        <div class="tower-item alive" id="status-player_left">◆ Левая башня</div>
+        <div class="tower-item alive citadel" id="status-player_citadel">⬡ Цитадель</div>
+        <div class="tower-item alive" id="status-player_right">◆ Правая башня</div>
+      </div>
+      <div id="player-shield-badge" class="shield-badge hidden">⛨ Щит гарнизона</div>
+    </div>
+
+    <!-- Панель противника -->
+    <div id="enemy-panel" class="panel">
+      <div class="panel-title enemy-color" id="enemy-panel-title">▼ Противник</div>
+      <div class="spice-row">
+        <span class="spice-icon">🌶</span>
+        <span id="enemy-spices">5</span>
+        <span class="spice-sep">/</span>
+        <span id="enemy-bank">10</span>
+        <span class="spice-label">специй</span>
+      </div>
+      <div class="income-row">Доход: <span id="enemy-income">24</span> /мин</div>
+      <div class="income-row">Инженер: <span id="enemy-engineer-info">—</span></div>
+      <div class="tower-list">
+        <div class="tower-item alive" id="status-enemy_left">◆ Левая башня</div>
+        <div class="tower-item alive citadel" id="status-enemy_citadel">⬡ Цитадель</div>
+        <div class="tower-item alive" id="status-enemy_right">◆ Правая башня</div>
+      </div>
+      <div id="enemy-shield-badge" class="shield-badge hidden">⛨ Щит гарнизона</div>
+    </div>
+
+    <!-- Рука карт игрока 1 (нижняя панель) -->
+    <div id="player-hand-panel" class="hand-panel">
+      <div class="lane-buttons">
+        <button class="lane-btn" id="btn-player-lane-left"  disabled>← Левая</button>
+        <button class="lane-btn" id="btn-player-lane-center" disabled>▲ Центр</button>
+        <button class="lane-btn" id="btn-player-lane-right"  disabled>Правая →</button>
+      </div>
+      <div class="hand-cards">
+        <div class="hand-card" id="player-card-0">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card" id="player-card-1">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card" id="player-card-2">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card" id="player-card-3">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card next-card" id="player-card-next" title="Следующая карта">
+          <div class="ch-icon"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Рука карт игрока 2 (только в 2P) -->
+    <div id="enemy-hand-panel" class="hand-panel hidden">
+      <div class="lane-buttons">
+        <button class="lane-btn lane-btn-enemy" id="btn-enemy-lane-left"  disabled>← Левая</button>
+        <button class="lane-btn lane-btn-enemy" id="btn-enemy-lane-center" disabled>▲ Центр</button>
+        <button class="lane-btn lane-btn-enemy" id="btn-enemy-lane-right"  disabled>Правая →</button>
+      </div>
+      <div class="hand-cards">
+        <div class="hand-card hand-card-enemy" id="enemy-card-0">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card hand-card-enemy" id="enemy-card-1">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card hand-card-enemy" id="enemy-card-2">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card hand-card-enemy" id="enemy-card-3">
+          <div class="ch-icon"></div>
+          <div class="ch-name">—</div>
+          <div class="ch-cost-row"><span class="ch-cost">0</span><span class="ch-spice"> 🌶</span></div>
+          <div class="ch-timer"></div>
+        </div>
+        <div class="hand-card next-card" id="enemy-card-next" title="Следующая карта">
+          <div class="ch-icon"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Подсказка -->
+    <div id="hint-bar">
+      Выбери карту → выбери линию &nbsp;|&nbsp; ПКМ — вращение &nbsp;|&nbsp; Колесо — зум
+    </div>
+
+    <!-- Кнопка рестарта -->
+    <button id="btn-restart">↺ Рестарт</button>
+
+  </div>
+
+  <!-- Экран победы / поражения -->
+  <div id="win-overlay" class="hidden">
+    <div id="win-card">
+      <div id="win-icon"></div>
+      <div id="win-title"></div>
+      <div id="win-subtitle"></div>
+      <div id="win-stats"></div>
+      <div id="win-rating-block" class="hidden"></div>
+      <div id="win-unlock-block" class="hidden"></div>
+      <div class="win-buttons">
+        <button id="btn-win-next" class="hidden">⚔ Следующий бой</button>
+        <button id="btn-win-restart">↺ Играть снова</button>
+        <button id="btn-win-menu">← Меню</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Сборка колоды -->
+  <div id="deck-builder-overlay" class="hidden">
+    <div id="deck-builder-card">
+      <div id="deck-builder-title">СБОРКА КОЛОДЫ</div>
+      <div id="deck-builder-player-label"></div>
+      <div class="db-faction-row">
+        <span class="db-faction-label">Фракция:</span>
+        <div class="db-faction-btns">
+          <button class="db-faction-btn selected" id="db-faction-none">Без фракции</button>
+          <button class="db-faction-btn" id="db-faction-honor">⛨ Дом Чести</button>
+        </div>
+      </div>
+      <div id="deck-builder-count">0 / 10 карт</div>
+      <div id="deck-builder-grid"></div>
+      <div class="db-action-row">
+        <button id="btn-deck-cancel" class="db-cancel-btn">← Отмена</button>
+        <button id="btn-deck-confirm" disabled>К БОЮ (0/10)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Главное меню — игровой хаб -->
+  <div id="menu-overlay" class="hidden">
+    <div id="menu-hub">
+
+      <!-- Левая зона: профиль -->
+      <div id="hub-profile" class="hub-panel">
+        <div class="hub-panel-title">ПРОФИЛЬ</div>
+        <div class="hub-player-name">Игрок</div>
+
+        <div class="hub-stat-row">
+          <span class="hub-stat-label">Рейтинг</span>
+          <span id="hub-rating" class="hub-stat-val">0</span>
+        </div>
+        <div class="hub-stat-row">
+          <span class="hub-stat-label">Уровень</span>
+          <span id="hub-level" class="hub-stat-val">1</span>
+        </div>
+
+        <div id="hub-progress-wrap">
+          <div id="hub-progress-label" class="hub-progress-label">До уровня 2: 100 рейтинга</div>
+          <div class="hub-progress-track">
+            <div id="hub-progress-fill" class="hub-progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="hub-stat-row">
+          <span class="hub-stat-label">Дом</span>
+          <span id="hub-house-name" class="hub-stat-val hub-gold">—</span>
+        </div>
+
+        <div id="hub-record" class="hub-record">
+          <span id="hub-wins">0 побед</span>
+          <span> · </span>
+          <span id="hub-losses">0 пораж.</span>
+        </div>
+
+        <div class="hub-flex-gap"></div>
+
+        <button id="btn-reset-profile" class="hub-btn-danger">↺ Сбросить прогресс</button>
+      </div>
+
+      <!-- Центральная зона: режимы -->
+      <div id="hub-center">
+        <div id="hub-logo">
+          <div id="menu-title">ДОМА ПУСТЫНИ</div>
+          <div id="menu-subtitle">прототип · v0.3</div>
+        </div>
+
+        <div class="hub-divider"></div>
+
+        <div class="hub-section-label">РЕЖИМ ИГРЫ</div>
+
+        <div id="hub-modes-list">
+          <button class="hub-mode-btn" id="btn-mode-1p">
+            <span class="hub-mode-icon">⚔</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">Бой 1 игрок</div>
+              <div class="hub-mode-desc">против ИИ · влияет на рейтинг</div>
+            </div>
+          </button>
+          <button class="hub-mode-btn" id="btn-mode-2p">
+            <span class="hub-mode-icon">👥</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">2 игрока</div>
+              <div class="hub-mode-desc">один экран · без рейтинга</div>
+            </div>
+          </button>
+          <button class="hub-mode-btn hub-mode-btn-ai" id="btn-mode-ai">
+            <span class="hub-mode-icon">🤖</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">AI vs AI тест</div>
+              <div class="hub-mode-desc">тест баланса · без рейтинга</div>
+            </div>
+          </button>
+        </div>
+
+        <div id="hub-side-section" class="hidden">
+          <div class="hub-section-label">ТВОЯ СТОРОНА</div>
+          <div id="hub-side-btns">
+            <button class="hub-side-btn selected" id="btn-side-bottom">▲ Нижняя</button>
+            <button class="hub-side-btn" id="btn-side-top">▼ Верхняя</button>
+            <button class="hub-side-btn" id="btn-side-random">🎲 Случайно</button>
+          </div>
+        </div>
+
+        <button id="btn-start-game" class="hidden">⚔ НАЧАТЬ БОЙ</button>
+
+        <div class="hub-divider"></div>
+
+        <div class="hub-section-label">ИГРА ПО СЕТИ</div>
+
+        <div id="hub-online-list">
+          <button class="hub-online-btn" id="btn-online-auth">
+            <span class="hub-mode-icon">👤</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">Войти / зарегистрироваться</div>
+              <div class="hub-mode-desc">онлайн-профиль · подключается позже</div>
+            </div>
+          </button>
+          <button class="hub-online-btn" id="btn-online-create">
+            <span class="hub-mode-icon">🌐</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">Создать комнату</div>
+              <div class="hub-mode-desc">получи ссылку и пригласи друга</div>
+            </div>
+          </button>
+          <button class="hub-online-btn" id="btn-online-join">
+            <span class="hub-mode-icon">🚪</span>
+            <div class="hub-mode-text">
+              <div class="hub-mode-name">Войти по коду</div>
+              <div class="hub-mode-desc">введи код комнаты</div>
+            </div>
+          </button>
+        </div>
+
+        <div id="online-auth-notice" class="online-auth-notice hidden">
+          Онлайн-регистрация будет подключена позже.<br>
+          Сейчас доступен локальный профиль.
+        </div>
+
+      </div>
+
+      <!-- Правая зона: локации -->
+      <div id="hub-right" class="hub-panel">
+        <div class="hub-panel-title">ЛОКАЦИИ</div>
+        <div id="hub-locations-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Экран онлайн-комнаты -->
+  <div id="room-overlay" class="hidden">
+    <div id="room-card">
+
+      <div id="room-title">ОНЛАЙН-КОМНАТА</div>
+      <div id="room-subtitle">Пригласи друга по ссылке или коду</div>
+
+      <div class="room-code-row">
+        <span class="room-label">Код комнаты:</span>
+        <span id="room-id-display" class="room-id-value">------</span>
+      </div>
+
+      <div class="room-link-row">
+        <span id="room-invite-link" class="room-link-text"></span>
+        <button id="btn-room-copy-link" class="room-copy-btn">Скопировать ссылку</button>
+      </div>
+
+      <div class="room-section-label">ИГРОКИ</div>
+      <div id="room-players-list" class="room-players-list"></div>
+
+      <div class="room-actions">
+        <button id="btn-room-add-test-player" class="room-btn-secondary">+ Добавить тестового игрока</button>
+        <button id="btn-room-ready" class="room-btn-ready">Готов</button>
+      </div>
+
+      <div class="room-main-actions">
+        <button id="btn-room-start" class="room-btn-start" disabled>⚔ Начать бой</button>
+        <button id="btn-room-back" class="room-btn-back">← Назад</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SVG UI-Kit символы из дизайна (скрытый, только defs) -->
+  <svg id="mm-svg-kit" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <defs>
+      <linearGradient id="svgGold" x1="0" x2="1" y1="0" y2="1">
+        <stop offset="0%"   stop-color="#F7D27A"/>
+        <stop offset="50%"  stop-color="#F4B54A"/>
+        <stop offset="100%" stop-color="#C98128"/>
+      </linearGradient>
+      <filter id="svgGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="svgSoftGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+
+      <!-- Щит игрока (без текста уровня — он добавляется через HTML) -->
+      <symbol id="mm-shield-art" viewBox="0 0 220 260">
+        <path d="M110 8 L204 42 L192 178 Q190 214 110 252 Q30 214 28 178 L16 42 Z"
+              fill="#5E1D10" stroke="url(#svgGold)" stroke-width="5"/>
+        <path d="M110 26 L184 54 L176 170 Q175 197 110 233 Q45 197 44 170 L36 54 Z"
+              fill="#7B2512" opacity="0.9"/>
+        <!-- Меч-крест внутри щита -->
+        <g fill="none" stroke="#F1C76C" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M110 68 L110 148"/>
+          <path d="M68 94 Q110 116 152 94"/>
+          <path d="M76 126 L110 156 L144 126"/>
+          <path d="M88 68 L68 110"/>
+          <path d="M132 68 L152 110"/>
+        </g>
+        <!-- Нижняя табличка -->
+        <path d="M60 180 H160 V244 H60 Z" fill="#24140D" stroke="url(#svgGold)" stroke-width="3"/>
+      </symbol>
+
+      <!-- Декор внутри кнопки «В бой» (без заливки и рамки — только арт) -->
+      <symbol id="mm-battle-deco" viewBox="0 0 520 520">
+        <!-- Внутренний контур ромба -->
+        <polygon points="260,44 476,260 260,476 44,260"
+                 fill="none" stroke="#FFD67B" stroke-width="2" opacity="0.65"/>
+        <!-- Меч -->
+        <g fill="none" stroke="#F1C76C" stroke-width="10"
+           stroke-linecap="round" stroke-linejoin="round"
+           transform="translate(220 130)">
+          <path d="M40 8 L40 70"/>
+          <path d="M6 30 Q40 52 74 30"/>
+          <path d="M14 54 L40 78 L66 54"/>
+        </g>
+        <!-- Декоративная линия под текстом -->
+        <line x1="170" y1="378" x2="350" y2="378" stroke="#E1B65E" stroke-width="3"/>
+        <polygon points="260,362 274,378 260,394 246,378" fill="#E1B65E"/>
+      </symbol>
+
+      <!-- Арт активной карточки Дом Чести -->
+      <symbol id="mm-card-honor-art" viewBox="0 0 280 420">
+        <!-- Внутренняя рамка -->
+        <rect x="14" y="14" rx="16" ry="16" width="252" height="392"
+              fill="none" stroke="#FFDA82" stroke-width="1.4" opacity="0.55"/>
+        <!-- Свечение в верхней части -->
+        <ellipse cx="140" cy="100" rx="80" ry="60"
+                 fill="rgba(255,120,30,0.15)"/>
+        <!-- Меч/герб вверху -->
+        <g fill="none" stroke="#F1C76C" stroke-width="8"
+           stroke-linecap="round" stroke-linejoin="round"
+           transform="translate(100 50)">
+          <path d="M40 6 L40 66"/>
+          <path d="M8 28 Q40 50 72 28"/>
+          <path d="M16 52 L40 76 L64 52"/>
+        </g>
+        <!-- Силуэт воина -->
+        <ellipse cx="140" cy="200" rx="22" ry="26" fill="#1A0C07" opacity="0.7"/>
+        <polygon points="110,290 140,220 168,232 138,318" fill="#1A0C07" opacity="0.6"/>
+        <polygon points="88,340 124,268 140,276 112,348" fill="#170A06" opacity="0.5"/>
+        <polygon points="168,334 140,260 156,252 186,330" fill="#170A06" opacity="0.5"/>
+        <!-- Горизонт/земля -->
+        <rect x="14" y="340" width="252" height="66" rx="0" ry="0"
+              fill="rgba(0,0,0,0.35)"/>
+      </symbol>
+
+      <!-- Арт заблокированных карточек (общий фон) -->
+      <symbol id="mm-card-locked-art" viewBox="0 0 280 420">
+        <rect x="14" y="14" rx="16" ry="16" width="252" height="392"
+              fill="none" stroke="#8899AA" stroke-width="1" opacity="0.25"/>
+        <!-- Маленький круг наверху -->
+        <circle cx="140" cy="90" r="30" fill="#26303A" stroke="#A8AEB8" stroke-width="1.5" opacity="0.8"/>
+        <!-- Вопросительный знак внутри круга -->
+        <text x="140" y="102" text-anchor="middle"
+              font-family="Georgia,serif" font-size="36" font-weight="700"
+              fill="#8899AA" opacity="0.65">?</text>
+      </symbol>
+    </defs>
+  </svg>
+
+  <!-- Главное меню — мобильный game screen -->
+  <div id="main-menu" class="hidden">
+    <div class="mm-layout">
+
+      <!-- Верхняя панель -->
+      <div class="mm-top-bar">
+        <button class="mm-player-block" id="mm-player-block" aria-label="Открыть профиль">
+          <!-- Щит с SVG-артом -->
+          <div class="mm-shield">
+            <svg viewBox="0 0 220 260" aria-hidden="true">
+              <use href="#mm-shield-art"/>
+            </svg>
+            <span class="mm-level" id="mm-level">12</span>
+          </div>
+          <div class="mm-player-name" id="mm-player-name">Игрок</div>
+          <div class="mm-player-house" id="mm-player-house">Дом Чести</div>
+          <div class="mm-xp-track">
+            <div class="mm-xp-fill" id="mm-xp-fill" style="width:62%"></div>
+          </div>
+          <div class="mm-xp-text" id="mm-xp-text">1250 / 2000 ОП</div>
+        </button>
+
+        <!-- Ресурсы -->
+        <div class="mm-resources">
+          <button class="mm-resource" id="mm-spices-btn" aria-label="Специи">
+            <span class="mm-res-icon-wrap"><span class="mm-icon-spice"></span></span>
+            <div class="mm-res-info">
+              <div class="mm-res-value" id="mm-spices-value">4 250</div>
+              <div class="mm-res-label">Специи</div>
+            </div>
+          </button>
+          <button class="mm-resource" id="mm-crystals-btn" aria-label="Кристаллы">
+            <span class="mm-res-icon-wrap"><span class="mm-icon-crystal"></span></span>
+            <div class="mm-res-info">
+              <div class="mm-res-value" id="mm-crystals-value">560</div>
+              <div class="mm-res-label">Кристаллы</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Название локации -->
+      <button class="mm-location-btn" id="mm-location-btn" aria-label="Карта локаций">
+        <div class="mm-location-name" id="mm-location-name">ПЕСЧАНЫЙ АВАНПОСТ</div>
+        <div class="mm-location-level" id="mm-location-level">Уровень 1</div>
+        <div class="mm-decor-diamond"></div>
+      </button>
+
+      <!-- Кнопка «В бой» — clip-path diamond + SVG-декор -->
+      <div class="mm-battle-wrap">
+        <button class="mm-battle-btn" id="mm-battle-btn" aria-label="В бой">
+          <!-- SVG декорации внутри ромба -->
+          <svg class="mm-battle-deco-svg" viewBox="0 0 520 520" aria-hidden="true">
+            <use href="#mm-battle-deco"/>
+          </svg>
+          <div class="mm-battle-inner">
+            <span class="mm-battle-text">В БОЙ</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Навигационные кнопки -->
+      <div class="mm-nav-row">
+        <button class="mm-nav-btn" id="mm-decks-btn" aria-label="Мои колоды">
+          <span class="mm-nav-icon mm-nav-icon-decks"></span>
+          <span class="mm-nav-label">Мои колоды</span>
+        </button>
+        <button class="mm-nav-btn" id="mm-collection-btn" aria-label="Коллекция карт">
+          <span class="mm-nav-icon mm-nav-icon-coll"></span>
+          <span class="mm-nav-label">Коллекция</span>
+        </button>
+      </div>
+
+      <!-- Онлайн-секция -->
+      <div class="mm-online-section">
+        <div class="mm-online-label">⚔ ИГРА ПО СЕТИ</div>
+        <div class="mm-online-btns">
+          <button class="mm-online-btn" id="btn-mm-online-create">
+            🌐 Создать комнату
+          </button>
+          <button class="mm-online-btn mm-online-btn--join" id="btn-mm-online-join">
+            🚪 Войти по коду
+          </button>
+        </div>
+      </div>
+
+      <!-- Обучение -->
+      <div class="mm-tutorial-block" id="mm-tutorial-block">
+        <div class="mm-tutorial-header">
+          <span class="mm-tutorial-title">ОБУЧЕНИЕ</span>
+          <span class="mm-tutorial-new-badge hidden" id="mm-tutorial-badge">Начни здесь</span>
+        </div>
+        <div class="mm-tutorial-btns">
+          <button class="mm-tutorial-btn" id="mm-btn-menu-tour">
+            <span class="mm-tutorial-btn-icon">🗺</span>
+            <span class="mm-tutorial-btn-label">Путь командира</span>
+          </button>
+          <button class="mm-tutorial-btn" id="mm-btn-unit-guide">
+            <span class="mm-tutorial-btn-icon">📖</span>
+            <span class="mm-tutorial-btn-label">Справочник юнитов</span>
+          </button>
+          <button class="mm-tutorial-btn" id="mm-btn-lessons">
+            <span class="mm-tutorial-btn-icon">⚔</span>
+            <span class="mm-tutorial-btn-label">Учебный бой</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Фракции (карточки рендерятся через JS с SVG-артом) -->
+      <div class="mm-factions">
+        <div class="mm-factions-row" id="mm-factions-row"></div>
+      </div>
+
+      <!-- Рейтинг -->
+      <button class="mm-rating-btn" id="mm-rating-btn" aria-label="Рейтинг">
+        <span class="mm-rating-icon">
+          <span class="mm-rating-bar"></span>
+          <span class="mm-rating-bar"></span>
+          <span class="mm-rating-bar"></span>
+        </span>
+        <span class="mm-rating-text">Рейтинг</span>
+        <span class="mm-rating-value" id="mm-rating-value">0</span>
+      </button>
+
+      <div class="mm-bottom-pad"></div>
+    </div>
+  </div>
+
+  <!-- Экран управления боевыми колодами -->
+  <div id="preset-screen" class="hidden">
+    <div class="ps-layout">
+      <div class="ps-header">
+        <button class="ps-back-btn" id="ps-back-btn" aria-label="Назад">←</button>
+        <span class="ps-title">БОЕВЫЕ КОЛОДЫ</span>
+        <div class="ps-header-spacer"></div>
+      </div>
+      <div class="ps-list" id="ps-list"></div>
+      <div class="ps-footer">
+        <button class="ps-btn-create" id="ps-btn-create">＋ Создать колоду</button>
+        <button class="ps-btn-fight" id="ps-btn-fight" disabled>К БОЮ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Справочник юнитов -->
+  <div id="unit-guide-screen" class="hidden">
+    <div class="ug-layout">
+      <div class="ug-header">
+        <button class="ug-back-btn" id="ug-back-btn" aria-label="Назад">←</button>
+        <span class="ug-title">СПРАВОЧНИК ЮНИТОВ</span>
+        <div class="ug-header-spacer"></div>
+      </div>
+      <div class="ug-filter-row" id="ug-filter-row">
+        <button class="ug-filter-btn ug-filter-active" data-cat="all">Все</button>
+        <button class="ug-filter-btn" data-cat="melee">Пехота</button>
+        <button class="ug-filter-btn" data-cat="ranged">Дальний бой</button>
+        <button class="ug-filter-btn" data-cat="assault">Осада</button>
+        <button class="ug-filter-btn" data-cat="tank">Танк</button>
+        <button class="ug-filter-btn" data-cat="air">Воздух</button>
+        <button class="ug-filter-btn" data-cat="economy">Экономика</button>
+      </div>
+      <div class="ug-grid" id="ug-grid"></div>
+    </div>
+    <!-- Детальная карточка юнита -->
+    <div id="ug-detail" class="hidden">
+      <div class="ug-detail-overlay" id="ug-detail-overlay"></div>
+      <div class="ug-detail-card">
+        <button class="ug-detail-close" id="ug-detail-close" aria-label="Закрыть">✕</button>
+        <div class="ug-detail-header">
+          <div class="ug-detail-icon" id="ug-detail-icon"></div>
+          <div class="ug-detail-name-block">
+            <div class="ug-detail-name" id="ug-detail-name"></div>
+            <div class="ug-detail-role" id="ug-detail-role"></div>
+          </div>
+        </div>
+        <div class="ug-detail-stats" id="ug-detail-stats"></div>
+        <div class="ug-detail-body" id="ug-detail-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Экран учебных боёв -->
+  <div id="tutorial-lessons-screen" class="hidden">
+    <div class="tl-layout">
+      <div class="tl-header">
+        <button class="tl-back-btn" id="tl-back-btn" aria-label="Назад">←</button>
+        <span class="tl-title">УЧЕБНЫЙ БОЙ</span>
+        <div class="tl-header-spacer"></div>
+      </div>
+      <div class="tl-desc">Каждый урок обучает отдельной механике. Рейтинг не изменяется.</div>
+      <div class="tl-list" id="tl-list"></div>
+    </div>
+  </div>
+
+  <!-- Модальное окно (bottom-sheet) -->
+  <div id="mm-modal" class="hidden">
+    <div class="mm-modal-overlay" id="mm-modal-overlay"></div>
+    <div class="mm-modal-card">
+      <button class="mm-modal-close" id="mm-modal-close" aria-label="Закрыть">✕</button>
+      <div class="mm-modal-title" id="mm-modal-title"></div>
+      <div class="mm-modal-text" id="mm-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ── Внутриигровое меню боя ────────────────────────────── -->
+  <div id="battle-menu-overlay" class="hidden" role="dialog" aria-modal="true" aria-labelledby="bm-title-el">
+    <div id="bm-backdrop" class="bm-backdrop"></div>
+    <div class="bm-panel">
+
+      <!-- Шапка -->
+      <div class="bm-header">
+        <div class="bm-title-row">
+          <span class="bm-title" id="bm-title-el">МЕНЮ БОЯ</span>
+          <span class="bm-status bm-status-paused" id="bm-status">⏸ Пауза</span>
+        </div>
+      </div>
+
+      <!-- Основные кнопки -->
+      <div id="bm-main-view" class="bm-view">
+        <button class="bm-btn bm-btn-primary" id="bm-btn-continue">
+          <span class="bm-btn-icon" aria-hidden="true">▶</span>
+          <span class="bm-btn-label">Продолжить бой</span>
+        </button>
+        <button class="bm-btn bm-btn-secondary" id="bm-btn-settings">
+          <span class="bm-btn-icon" aria-hidden="true">⚙</span>
+          <span class="bm-btn-label">Настройки</span>
+        </button>
+        <button class="bm-btn bm-btn-danger-soft" id="bm-btn-surrender">
+          <span class="bm-btn-icon" aria-hidden="true">⚑</span>
+          <span class="bm-btn-label">Сдаться</span>
+        </button>
+        <div class="bm-divider" role="separator"></div>
+        <button class="bm-btn bm-btn-exit" id="bm-btn-exit">
+          <span class="bm-btn-icon" aria-hidden="true">←</span>
+          <span class="bm-btn-label">Главное меню</span>
+        </button>
+      </div>
+
+      <!-- Настройки -->
+      <div id="bm-settings-view" class="bm-view hidden">
+        <div class="bm-sub-header">
+          <button class="bm-back-btn" id="bm-settings-back" aria-label="Вернуться в меню боя">‹ Назад</button>
+          <span class="bm-sub-title">Настройки</span>
+        </div>
+        <div class="bm-settings-list">
+          <div class="bm-setting-row">
+            <span class="bm-setting-label">Звук</span>
+            <button class="bm-toggle bm-toggle-on" id="bm-sound-toggle" aria-pressed="true">ВКЛ</button>
+          </div>
+          <div class="bm-setting-row">
+            <span class="bm-setting-label">Музыка</span>
+            <button class="bm-toggle bm-toggle-on" id="bm-music-toggle" aria-pressed="true">ВКЛ</button>
+          </div>
+          <div class="bm-setting-row">
+            <span class="bm-setting-label">Вибрация</span>
+            <button class="bm-toggle bm-toggle-on" id="bm-vibration-toggle" aria-pressed="true">ВКЛ</button>
+          </div>
+          <div class="bm-setting-row bm-setting-row-quality">
+            <span class="bm-setting-label">Качество графики</span>
+            <div class="bm-quality-group" role="group" aria-label="Качество графики">
+              <button class="bm-quality-btn" data-quality="low">Низкое</button>
+              <button class="bm-quality-btn bm-quality-active" data-quality="medium">Среднее</button>
+              <button class="bm-quality-btn" data-quality="high">Высокое</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Подтверждение действия -->
+      <div id="bm-confirm-view" class="bm-view hidden">
+        <div class="bm-confirm-title" id="bm-confirm-title">Выйти из боя?</div>
+        <div class="bm-confirm-text" id="bm-confirm-text">Текущий бой будет завершён. Прогресс матча не сохранится.</div>
+        <div class="bm-confirm-actions">
+          <button class="bm-btn bm-btn-secondary" id="bm-confirm-cancel">Отмена</button>
+          <button class="bm-btn bm-btn-confirm-danger" id="bm-confirm-action">Выйти</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
