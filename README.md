@@ -1,7 +1,7 @@
 # ДОМА ПУСТЫНИ — Справочник кода
 
 > Карточная PvP стратегия (Three.js + Vite). Быстрый навигатор по файлам.
-> Версия: v2.5 — Deploy delay, ghost-индикатор, обновлён Balance Editor
+> Версия: v2.6 — Приватность UI: экономика противника скрыта, Dev Console защищена
 
 ---
 
@@ -53,7 +53,7 @@ doma-pustyni/
     ├── unit-manager.js     ← UnitManager — AI юнитов, стрельба, бой
     ├── units.js            ← Unit класс — 3D меши юнитов, HP бар
     ├── deck-builder.js     ← DeckBuilder — UI выбора колоды (фракции)
-    ├── dev-console.js      ← DevConsole — консоль разработчика (клавиша `, кнопка 🛠 DEV)
+    ├── dev-console.js      ← DevConsole — консоль разработчика (только localhost или ?dev=1)
     ├── config/
     │   └── progression.js  ← PROGRESSION (5 уровней) + HOUSES (5 домов)
     ├── services/
@@ -92,6 +92,7 @@ doma-pustyni/
 | Отрисовка руки | `renderHandUI(prefix, hand)` |
 | Клики по картам | `bindHandClicks(prefix)` |
 | Главный цикл | `requestAnimationFrame` → `elapsedSeconds = (Date.now() - _matchStartWallMs - _totalPausedMs) / 1000` (не зависит от активности вкладки) |
+| Приватность UI | `_applyPrivacyMode(mode, localSide)` — скрывает экономику противника и лишние руки в зависимости от режима |
 | Режимы игры | `'1p'` (vs AI), `'2p'` (локально), `'ai'` (авто-тест), `'online'` (Socket.IO), `'tutorial'` (обучение) |
 | Клавиатура | `Escape` → `battleMenu.handleEscape()`, `P` → toggle паузы без меню |
 
@@ -437,6 +438,8 @@ tick()          play()          spawn()
 | Тест баланса | `sim.mjs` | `runMatch()`, константы |
 | **Deploy delay юнита** | `src/cards.js` | `deployRules.deployDelay` + `src/unit-manager.js` `_pendingSpawns` |
 | **Ghost при задержке** | `src/unit-manager.js` | `_createGhost()` — цвет, геометрия, пульс |
+| **Приватность UI** | `src/main.js` | `_applyPrivacyMode(mode, localSide)` — скрыть/показать экономику и руки |
+| **Dev Console доступ** | `src/dev-console.js` | `_isDevMode()` — localhost или `?dev=1` |
 | Онлайн-комната (UI) | `room-screen.js` | `RoomScreen`, `show()`, `_renderPlayers()` |
 | Подключить WebSocket | `services/room-service.js` | Заменить localStorage-функции на socket-вызовы |
 | Подключить авторизацию | `services/auth-service.js` | Заменить заглушки на SDK (Firebase/Supabase) |
@@ -547,6 +550,34 @@ cloudflared tunnel --url http://localhost:3000
 ---
 
 ## История версий
+
+### v2.6 — Приватность UI: скрыта экономика противника, Dev Console защищена
+
+**Проблема:** игрок видел специи, доход и уровень инженера противника. В онлайн-режиме хост видел руку гостя и наоборот. Кнопка `🛠 DEV` была доступна всем пользователям на продакшне.
+
+**Правила видимости по режиму:**
+
+| Элемент | 1P vs AI | AI vs AI | 2P локально | Online host | Online guest | Tutorial |
+|---------|----------|----------|-------------|-------------|--------------|----------|
+| Экономика игрока (специи, доход, инженер) | ✅ | ✅ | ✅ | ✅ | скрыта | ✅ |
+| Экономика противника | **скрыта** | ✅ | ✅ | **скрыта** | ✅ | **скрыта** |
+| Рука игрока | ✅ | скрыта | ✅ | ✅ | скрыта | ✅ |
+| Рука противника | скрыта | скрыта | ✅ | **скрыта** | ✅ | скрыта |
+| Башни противника (статус) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+- «Скрыта» = элемент скрыт через `.hidden`, данные всё равно обновляются внутри (AI/сеть работают корректно)
+- В онлайн-режиме гость управляет enemy-стороной и видит только enemy-hand-panel
+
+**Dev Console (`🛠 DEV`):**
+- На продакшне (Render.com) кнопка не создаётся, клавиша `` ` `` не регистрируется
+- Активируется только на `localhost` / `127.0.0.1` или через `?dev=1` в URL
+
+| Файл | Что изменилось |
+|------|----------------|
+| `src/main.js` | `_applyPrivacyMode(mode, localSide)` — скрывает/показывает `.spice-row` и `.income-row` + hand-panels по режиму; убран `online` из `mode-2p`; game loop рендерит enemy-руку только в 2P и online-guest |
+| `src/dev-console.js` | `_isDevMode()` — проверка hostname/URL; конструктор возвращается досрочно если не dev; `update()`/`toggle()` защищены `this._noop` |
+
+---
 
 ### v2.5 — Deploy delay: задержка появления тяжёлых юнитов
 
@@ -824,6 +855,8 @@ let dmg = unit.def.buildingDamage / activeCount;        // vs towers
 
 **Новый файл:** `src/dev-console.js` — класс `DevConsole`, самодостаточный (инжектирует свой CSS, создаёт DOM).
 
+**Доступ:** только на `localhost` / `127.0.0.1` или при `?dev=1` в URL. На продакшне кнопка и клавиша недоступны.
+
 **Интеграция в `main.js`:**
 - `import { DevConsole }` добавлен в шапку
 - `let devSpeedMult = 1.0` — множитель скорости симуляции
@@ -840,7 +873,7 @@ let dmg = unit.def.buildingDamage / activeCount;        // vs towers
 | Скорость | ×0.5 / ×1 / ×2 / ×4 — масштабирует `delta` |
 | Статус | Режим, время матча, число юнитов на поле |
 
-**Управление:** кнопка `🛠 DEV` (верхний левый угол) или клавиша `` ` `` / `Ё`.
+**Управление (только dev mode):** кнопка `🛠 DEV` (верхний левый угол) или клавиша `` ` `` / `Ё`.
 
 ---
 
