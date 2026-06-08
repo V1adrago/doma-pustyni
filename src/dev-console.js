@@ -1,5 +1,11 @@
 // Dev Console — developer overlay for quick match start, unit spawn, speed control.
-// Toggle with backtick (`) key or the [🛠 DEV] button.
+// Only active on localhost or when URL contains ?dev=1.
+
+function _isDevMode() {
+  return location.hostname === 'localhost' ||
+         location.hostname === '127.0.0.1' ||
+         new URLSearchParams(location.search).has('dev');
+}
 
 const UNIT_LIST = [
   { id: 'scout',     name: '⚡ Ищейка Барханов'   },
@@ -114,6 +120,8 @@ const CSS = `
 
 export class DevConsole {
   constructor({ onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState }) {
+    if (!_isDevMode()) { this._noop = true; return; }
+
     this._cb = { onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState };
     this._visible  = false;
     this._spawnSide = 'player';
@@ -292,13 +300,14 @@ export class DevConsole {
   }
 
   toggle() {
+    if (this._noop) return;
     this._visible = !this._visible;
     this._panel.classList.toggle('dc-hidden', !this._visible);
   }
 
   // Call once per frame from the game loop to refresh status.
   update() {
-    if (!this._visible || !this._statusEl) return;
+    if (this._noop || !this._visible || !this._statusEl) return;
     const st = this._cb.getState?.();
     if (!st) return;
 

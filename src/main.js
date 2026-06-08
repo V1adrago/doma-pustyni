@@ -641,6 +641,42 @@ function startTutorialBattle(lessonId) {
   tutorialController.start(lessonId);
 }
 
+// ── Privacy mode — hides opponent info from local player ──────────────────────
+
+function _applyPrivacyMode(mode, side) {
+  const playerPanel     = document.getElementById('player-panel');
+  const enemyPanel      = document.getElementById('enemy-panel');
+  const playerHandPanel = document.getElementById('player-hand-panel');
+  const enemyHandPanel  = document.getElementById('enemy-hand-panel');
+
+  const setEco = (panel, visible) => {
+    panel?.querySelectorAll('.spice-row, .income-row').forEach(el =>
+      el.classList.toggle('hidden', !visible)
+    );
+  };
+
+  if (mode === '2p' || mode === 'ai') {
+    // Developer/same-screen modes: full visibility
+    setEco(playerPanel, true);
+    setEco(enemyPanel, true);
+    playerHandPanel?.classList.remove('hidden');
+    enemyHandPanel?.classList.toggle('hidden', mode === 'ai');
+  } else if (mode === 'online') {
+    // Show only local player's economy and hand
+    const isHost = side === 'player';
+    setEco(playerPanel,  isHost);
+    setEco(enemyPanel,  !isHost);
+    playerHandPanel?.classList.toggle('hidden', !isHost);
+    enemyHandPanel?.classList.toggle('hidden',   isHost);
+  } else {
+    // 1P, tutorial: hide enemy economy completely
+    setEco(playerPanel, true);
+    setEco(enemyPanel, false);
+    playerHandPanel?.classList.remove('hidden');
+    enemyHandPanel?.classList.add('hidden');
+  }
+}
+
 function beginMatch() {
   elapsedSeconds        = 0;
   matchRunning          = true;
@@ -688,7 +724,7 @@ function beginMatch() {
 
   battleMenu.setTutorialMode(gameConfig.mode === 'tutorial');
   ui.configure(gameConfig);
-  document.body.classList.toggle('mode-2p', gameConfig.mode === '2p' || gameConfig.mode === 'online');
+  document.body.classList.toggle('mode-2p', gameConfig.mode === '2p');
   document.body.classList.toggle('mode-ai', gameConfig.mode === 'ai');
 
   const playerPanel = document.getElementById('player-panel');
@@ -696,11 +732,7 @@ function beginMatch() {
   if (playerPanel) playerPanel.classList.toggle('honor-faction', gameConfig.playerFaction === 'honor');
   if (enemyPanel)  enemyPanel.classList.toggle('honor-faction',  gameConfig.enemyFaction  === 'honor');
 
-  // In online mode, always show both hand panels
-  const enemyHandPanel = document.getElementById('enemy-hand-panel');
-  if (enemyHandPanel) {
-    enemyHandPanel.classList.toggle('hidden', gameConfig.mode !== '2p' && gameConfig.mode !== 'online');
-  }
+  _applyPrivacyMode(gameConfig.mode, localSide);
 
   renderHandUI('player', playerHand);
   renderHandUI('enemy', enemyHand);
@@ -1285,9 +1317,9 @@ function animate(timestamp) {
         }
       }
 
-      // Refresh hand display
+      // Refresh hand display (only render what the local player can see)
       if (gameConfig.mode !== 'ai') renderHandUI('player', playerHand);
-      if (gameConfig.mode === '2p' || gameConfig.mode === 'online') renderHandUI('enemy', enemyHand);
+      if (gameConfig.mode === '2p' || (gameConfig.mode === 'online' && localSide === 'enemy')) renderHandUI('enemy', enemyHand);
     }
   }
 
