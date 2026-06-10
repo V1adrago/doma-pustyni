@@ -1,6 +1,44 @@
 import * as THREE from 'three';
 import { CARD_DEFS } from './cards.js';
 
+// ── Status effect helpers (used by UnitManager) ───────────────────────────────
+
+export function applySlowEffect(unit, pct, duration, nowSec) {
+  // garrison_marshal absorbs first slow
+  if (unit.cardId === 'garrison_marshal' && !unit._special?.slowImmunityUsed) {
+    unit._special.slowImmunityUsed = true;
+    return;
+  }
+  const until = nowSec + duration;
+  if (!unit._statusEffects.slow || unit._statusEffects.slow.until < until) {
+    unit._statusEffects.slow = { until, factor: 1 - pct };
+  }
+}
+
+export function applyRootEffect(unit, duration, nowSec) {
+  const until = nowSec + duration;
+  if (!unit._statusEffects.root || unit._statusEffects.root.until < until) {
+    unit._statusEffects.root = { until };
+  }
+}
+
+export function applyStunEffect(unit, duration, nowSec) {
+  const until = nowSec + duration;
+  if (!unit._statusEffects.stun || unit._statusEffects.stun.until < until) {
+    unit._statusEffects.stun = { until };
+  }
+}
+
+export function isUnitRooted(unit, nowSec) {
+  return (unit._statusEffects?.root?.until > nowSec) ||
+         (unit._statusEffects?.stun?.until > nowSec);
+}
+
+export function getUnitSpeedFactor(unit, nowSec) {
+  if (unit._statusEffects?.slow?.until > nowSec) return unit._statusEffects.slow.factor;
+  return 1.0;
+}
+
 export const LANE_X = { left: -6, center: 0, right: 6 };
 const SPAWN_Z = { player: 14.5, enemy: -14.5 };
 
@@ -385,16 +423,300 @@ function buildGuard(side) {
   return g;
 }
 
+function buildDuneGuard(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.BoxGeometry(0.54, 0.74, 0.44);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const helmGeo = new THREE.BoxGeometry(0.40, 0.28, 0.40);
+  const helmMat = new THREE.MeshLambertMaterial({ color: 0x7a6830 });
+  const helm = new THREE.Mesh(helmGeo, helmMat);
+  helm.position.y = 0.52;
+  g.add(helm);
+  const shieldGeo = new THREE.BoxGeometry(0.14, 0.62, 0.50);
+  const shieldMat = new THREE.MeshLambertMaterial({ color: 0x8a7040, emissive: 0x332200, emissiveIntensity: 0.2 });
+  const shield = new THREE.Mesh(shieldGeo, shieldMat);
+  shield.position.set(-0.32, 0.04, -0.30);
+  shield.castShadow = true;
+  g.add(shield);
+  g._shieldMesh = shield;
+  return g;
+}
+
+function buildSandRunner(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.16, 0.38, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const capeGeo = new THREE.ConeGeometry(0.22, 0.46, 5);
+  const capeMat = new THREE.MeshLambertMaterial({ color: 0xc8a030 });
+  const cape = new THREE.Mesh(capeGeo, capeMat);
+  cape.position.set(0, 0.02, 0.12);
+  cape.rotation.x = 0.35;
+  g.add(cape);
+  const bladGeo = new THREE.BoxGeometry(0.05, 0.28, 0.04);
+  const bladMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+  const blad = new THREE.Mesh(bladGeo, bladMat);
+  blad.position.set(0.20, 0.08, 0);
+  blad.rotation.z = 0.2;
+  g.add(blad);
+  return g;
+}
+
+function buildHookThrower(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.18, 0.52, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const hoodGeo = new THREE.ConeGeometry(0.20, 0.26, 5);
+  const hoodMat = new THREE.MeshLambertMaterial({ color: 0x2a4a4a });
+  const hood = new THREE.Mesh(hoodGeo, hoodMat);
+  hood.position.y = 0.48;
+  g.add(hood);
+  const shaftGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.55, 5);
+  const shaftMat = new THREE.MeshLambertMaterial({ color: 0x4a3a20 });
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.position.set(0.28, 0.06, 0);
+  shaft.rotation.z = Math.PI / 2;
+  g.add(shaft);
+  const hookGeo = new THREE.TorusGeometry(0.09, 0.025, 4, 6, Math.PI * 1.2);
+  const hookMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
+  const hook = new THREE.Mesh(hookGeo, hookMat);
+  hook.position.set(0.58, 0.06, 0);
+  hook.rotation.z = -0.3;
+  g.add(hook);
+  return g;
+}
+
+function buildCaravanShields(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.BoxGeometry(0.50, 0.70, 0.40);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const helmGeo = new THREE.BoxGeometry(0.38, 0.26, 0.38);
+  const helmMat = new THREE.MeshLambertMaterial({ color: 0x334488 });
+  const helm = new THREE.Mesh(helmGeo, helmMat);
+  helm.position.y = 0.50;
+  g.add(helm);
+  const shieldGeo = new THREE.BoxGeometry(0.60, 0.72, 0.10);
+  const shieldMat = new THREE.MeshLambertMaterial({ color: 0x336699, emissive: 0x112244, emissiveIntensity: 0.3 });
+  const shield = new THREE.Mesh(shieldGeo, shieldMat);
+  shield.position.set(0, 0.04, -0.30);
+  shield.castShadow = true;
+  g.add(shield);
+  g._shieldMesh = shield;
+  return g;
+}
+
+function buildRockDemolitionist(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.20, 0.44, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const helmGeo = new THREE.SphereGeometry(0.20, 6, 5);
+  const helmMat = new THREE.MeshLambertMaterial({ color: 0x4a3a20 });
+  const helm = new THREE.Mesh(helmGeo, helmMat);
+  helm.position.y = 0.44;
+  g.add(helm);
+  const bombGeo = new THREE.SphereGeometry(0.18, 6, 5);
+  const bombMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+  const bomb = new THREE.Mesh(bombGeo, bombMat);
+  bomb.position.set(0.26, -0.02, 0);
+  bomb.scale.set(1, 0.85, 0.85);
+  g.add(bomb);
+  const fuseGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.18, 4);
+  const fuseMat = new THREE.MeshLambertMaterial({ color: 0xcc6622, emissive: 0x882200, emissiveIntensity: 0.6 });
+  const fuse = new THREE.Mesh(fuseGeo, fuseMat);
+  fuse.position.set(0.26, 0.18, 0);
+  g.add(fuse);
+  g._indicatorMesh = fuse;
+  return g;
+}
+
+function buildCaravanDuelist(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.17, 0.60, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const maskGeo = new THREE.BoxGeometry(0.28, 0.24, 0.28);
+  const maskMat = new THREE.MeshLambertMaterial({ color: 0x2a1a2a });
+  const mask = new THREE.Mesh(maskGeo, maskMat);
+  mask.position.y = 0.52;
+  g.add(mask);
+  const bladeGeo = new THREE.BoxGeometry(0.04, 0.58, 0.04);
+  const bladeMat = new THREE.MeshLambertMaterial({ color: 0xe0e0e0, emissive: 0x888888, emissiveIntensity: 0.3 });
+  const blade = new THREE.Mesh(bladeGeo, bladeMat);
+  blade.position.set(0.24, 0.16, 0);
+  blade.rotation.z = -0.15;
+  g.add(blade);
+  return g;
+}
+
+function buildDesertTrapper(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.18, 0.48, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const hoodGeo = new THREE.ConeGeometry(0.22, 0.30, 6);
+  const hoodMat = new THREE.MeshLambertMaterial({ color: 0x3a2a10 });
+  const hood = new THREE.Mesh(hoodGeo, hoodMat);
+  hood.position.y = 0.46;
+  g.add(hood);
+  const netHandleGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.50, 5);
+  const netMat = new THREE.MeshLambertMaterial({ color: 0x8a7040 });
+  const netHandle = new THREE.Mesh(netHandleGeo, netMat);
+  netHandle.position.set(0.26, 0.10, 0);
+  netHandle.rotation.z = 0.5;
+  g.add(netHandle);
+  const netBallGeo = new THREE.SphereGeometry(0.10, 5, 4);
+  const netBallMat = new THREE.MeshLambertMaterial({ color: 0x8a7040, wireframe: true });
+  const netBall = new THREE.Mesh(netBallGeo, netBallMat);
+  netBall.position.set(0.52, 0.34, 0);
+  g.add(netBall);
+  return g;
+}
+
+function buildSiegeDrone(side) {
+  const color = UNIT_COLOR[side].air;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.BoxGeometry(0.70, 0.22, 0.50);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const topGeo = new THREE.BoxGeometry(0.44, 0.14, 0.34);
+  const topMat = new THREE.MeshLambertMaterial({ color: 0x223344 });
+  const top = new THREE.Mesh(topGeo, topMat);
+  top.position.y = 0.18;
+  g.add(top);
+  const armOffsets = [[-0.38, 0, -0.28], [0.38, 0, -0.28], [-0.38, 0, 0.28], [0.38, 0, 0.28]];
+  const armGeo = new THREE.BoxGeometry(0.32, 0.06, 0.06);
+  const armMat = new THREE.MeshLambertMaterial({ color: 0x334455 });
+  for (const [x, y, z] of armOffsets) {
+    const arm = new THREE.Mesh(armGeo, armMat);
+    arm.position.set(x, y, z);
+    if (Math.abs(z) > 0.1) arm.rotation.y = Math.PI / 2;
+    g.add(arm);
+  }
+  const barrelGeo = new THREE.CylinderGeometry(0.055, 0.04, 0.36, 6);
+  const barrelMat = new THREE.MeshLambertMaterial({ color: 0x888888, emissive: 0x442200, emissiveIntensity: 0.4 });
+  const barrel = new THREE.Mesh(barrelGeo, barrelMat);
+  barrel.position.set(0, -0.18, -0.26);
+  barrel.rotation.x = Math.PI / 2;
+  g.add(barrel);
+  g._indicatorMesh = barrel;
+  return g;
+}
+
+function buildGarrisonMarshal(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.BoxGeometry(0.80, 1.02, 0.68);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const helmGeo = new THREE.BoxGeometry(0.54, 0.38, 0.52);
+  const helmMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
+  const helm = new THREE.Mesh(helmGeo, helmMat);
+  helm.position.y = 0.72;
+  g.add(helm);
+  const crestGeo = new THREE.BoxGeometry(0.10, 0.34, 0.44);
+  const crestMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0x885500, emissiveIntensity: 0.4 });
+  const crest = new THREE.Mesh(crestGeo, crestMat);
+  crest.position.y = 1.02;
+  g.add(crest);
+  const shldGeo = new THREE.BoxGeometry(0.10, 0.66, 0.54);
+  const shldMat = new THREE.MeshLambertMaterial({ color: 0xd4a017, emissive: 0x553300, emissiveIntensity: 0.2 });
+  const shld = new THREE.Mesh(shldGeo, shldMat);
+  shld.position.set(-0.48, 0.06, 0);
+  shld.castShadow = true;
+  g.add(shld);
+  const maceGeo = new THREE.SphereGeometry(0.18, 7, 5);
+  const maceMat = new THREE.MeshLambertMaterial({ color: 0xd4a017, emissive: 0x553300, emissiveIntensity: 0.5 });
+  const mace = new THREE.Mesh(maceGeo, maceMat);
+  mace.position.set(0.52, 0.06, 0);
+  g.add(mace);
+  g._crestMesh  = crest;
+  g._shieldMesh = shld;
+  return g;
+}
+
+function buildOathBlade(side) {
+  const color = UNIT_COLOR[side].ground;
+  const g = new THREE.Group();
+  const bodyGeo = new THREE.CapsuleGeometry(0.20, 0.70, 3, 7);
+  const bodyMat = new THREE.MeshLambertMaterial({ color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  g.add(body);
+  const helmGeo = new THREE.BoxGeometry(0.36, 0.32, 0.36);
+  const helmMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
+  const helm = new THREE.Mesh(helmGeo, helmMat);
+  helm.position.y = 0.60;
+  g.add(helm);
+  const visorGeo = new THREE.BoxGeometry(0.30, 0.10, 0.10);
+  const visorMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0xaa6600, emissiveIntensity: 0.5 });
+  const visor = new THREE.Mesh(visorGeo, visorMat);
+  visor.position.set(0, 0.56, 0.22);
+  g.add(visor);
+  const swordGeo = new THREE.BoxGeometry(0.04, 0.72, 0.04);
+  const swordMat = new THREE.MeshLambertMaterial({ color: 0xf0f0f0, emissive: 0xaaaaaa, emissiveIntensity: 0.4 });
+  const sword = new THREE.Mesh(swordGeo, swordMat);
+  sword.position.set(0.28, 0.18, 0);
+  sword.rotation.z = -0.12;
+  g.add(sword);
+  const guardGeo = new THREE.BoxGeometry(0.30, 0.06, 0.08);
+  const guardMat = new THREE.MeshLambertMaterial({ color: 0xffd700 });
+  const guardPiece = new THREE.Mesh(guardGeo, guardMat);
+  guardPiece.position.set(0.28, -0.12, 0);
+  g.add(guardPiece);
+  g._crestMesh = visor;
+  return g;
+}
+
 function buildMesh(def, side) {
   switch (def.armorClass) {
-    case 'engineer':  return buildEngineer(side);
-    case 'light':     return def.id === 'scout' ? buildScout(side) : buildDrone(side);
-    case 'medium':    return buildSwordsman(side);
-    case 'assault':   return buildAssault(side);
-    case 'ranged':    return buildArcher(side);
-    case 'antiHeavy': return buildSpearman(side);
-    case 'heavy':     return buildHeavy(side);
-    case 'guard':     return buildGuard(side);
+    case 'engineer':                return buildEngineer(side);
+    case 'light':                   return def.id === 'scout' ? buildScout(side) : buildDrone(side);
+    case 'medium':                  return buildSwordsman(side);
+    case 'assault':                 return buildAssault(side);
+    case 'ranged':                  return buildArcher(side);
+    case 'antiHeavy':               return buildSpearman(side);
+    case 'heavy':                   return buildHeavy(side);
+    case 'guard':                   return buildGuard(side);
+    // v1.1
+    case 'mediumControl':           return buildDuneGuard(side);
+    case 'lightRaider':             return buildSandRunner(side);
+    case 'rangedControl':           return buildHookThrower(side);
+    case 'shield':                  return buildCaravanShields(side);
+    case 'explosive':               return buildRockDemolitionist(side);
+    case 'duelist':                 return buildCaravanDuelist(side);
+    case 'trapper':                 return buildDesertTrapper(side);
+    case 'siegeAir':                return buildSiegeDrone(side);
+    case 'legendaryHonorDefender':  return buildGarrisonMarshal(side);
+    case 'legendaryHonorDuelist':   return buildOathBlade(side);
     default:
       if (def.unitType === 'air') return buildDrone(side);
       return buildSwordsman(side);
@@ -544,6 +866,103 @@ export function tickVfx(scene, now) {
   _cleanVfx(scene, now);
 }
 
+export function spawnRootNet(scene, pos) {
+  const g = new THREE.Group();
+  const mats = [];
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2;
+    const geo = new THREE.TorusGeometry(0.45 + i * 0.18, 0.04, 4, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xddaa22, transparent: true, opacity: 0.9 });
+    mats.push(mat);
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = -Math.PI / 2;
+    g.add(m);
+  }
+  g.position.copy(pos);
+  g.position.y = 0.12;
+  _addVfx(scene, g, 1.1, t => { for (const m of mats) m.opacity = (1 - t) * 0.9; });
+}
+
+export function spawnHookLine(scene, from, to) {
+  const pts = [from.clone(), to.clone()];
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 1 });
+  const line = new THREE.Line(geo, mat);
+  _addVfx(scene, line, 0.22, t => { mat.opacity = 1 - t; });
+}
+
+export function spawnAoeBlast(scene, pos, radius) {
+  const geo = new THREE.RingGeometry(0, radius, 20);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff6622, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(geo, mat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.copy(pos);
+  ring.position.y = 0.12;
+  _addVfx(scene, ring, 0.45, t => {
+    ring.scale.setScalar(0.3 + t * 0.7);
+    mat.opacity = (1 - t) * 0.75;
+  });
+}
+
+export function spawnOathMark(scene, pos) {
+  const g = new THREE.Group();
+  const pts = [];
+  for (let i = 0; i <= 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * 0.55, 0, Math.sin(a) * 0.55));
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0xffd700, transparent: true, opacity: 1 });
+  const ring = new THREE.Line(geo, mat);
+  g.add(ring);
+  g.position.copy(pos);
+  g.position.y = 2.2;
+  _addVfx(scene, g, 0.8, t => {
+    mat.opacity = t < 0.3 ? t / 0.3 : (1 - t) * 1.4;
+    g.position.y = pos.y + 2.2 + t * 0.5;
+  });
+}
+
+export function spawnCounterFlash(scene, pos) {
+  const geo = new THREE.SphereGeometry(0.55, 8, 6);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.85, wireframe: true });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.copy(pos);
+  m.position.y += 0.6;
+  _addVfx(scene, m, 0.35, t => { mat.opacity = (1 - t) * 0.85; m.scale.setScalar(1 + t * 1.2); });
+}
+
+// ── Special ability state init ────────────────────────────────────────────────
+
+function _initSpecialState(def) {
+  const s = def.special;
+  if (!s) return {};
+  switch (s.type) {
+    case 'first_hit_slow':
+      return { slowUsed: false };
+    case 'opening_sprint_building_hit':
+      return { sprintTimer: s.sprintDuration, sprintActive: true, firstBuildingBonusUsed: false };
+    case 'first_hit_hook':
+      return { hookUsed: false };
+    case 'front_ranged_reduction':
+      return {};
+    case 'aoe_attack':
+      return {};
+    case 'duel_bonus':
+      return {};
+    case 'first_fast_enemy_root':
+      return { trapUsed: false };
+    case 'siege_target_priority':
+      return {};
+    case 'garrison_counter':
+      return { damageAccum: 0, counterReady: false, slowImmunityUsed: false };
+    case 'oath_mark':
+      return { oathTarget: null, firstHitDone: false };
+    default:
+      return {};
+  }
+}
+
 // ── Squad formation layout ────────────────────────────────────────────────────
 
 const SQUAD_FORMATIONS = {
@@ -624,6 +1043,10 @@ export class Unit {
     // Keep first-model refs for single-model backward compat
     this._shieldMesh    = this.squadModels[0]?._shieldMesh    ?? null;
     this._indicatorMesh = this.squadModels[0]?._indicatorMesh ?? null;
+
+    // Special ability state and status effects
+    this._statusEffects = {};  // { slow, root, stun }
+    this._special       = _initSpecialState(def);
   }
 
   // Build individual model copies placed in formation inside squadGroup
@@ -752,6 +1175,36 @@ export class Unit {
       case 'guard':
         for (const crest of this._crestMeshes) {
           crest.material.emissiveIntensity = 0.15 + Math.abs(Math.sin(t * 1.5)) * 0.2;
+        }
+        break;
+      case 'sand_runner':
+        this.squadGroup.rotation.z = Math.sin(t * 10) * 0.08;
+        break;
+      case 'hook_thrower':
+        this.squadGroup.rotation.z = Math.sin(t * 3) * 0.04;
+        break;
+      case 'dune_guard':
+        this.squadGroup.rotation.z = Math.sin(t * 3.5) * 0.025;
+        break;
+      case 'rock_demolitionist':
+        for (const ind of this._indicatorMeshes) {
+          ind.material.emissiveIntensity = 0.3 + Math.abs(Math.sin(t * 4)) * 0.9;
+        }
+        break;
+      case 'siege_drone':
+        this.mesh.position.y = 2.8 + Math.sin(t * 2.8) * 0.22;
+        for (const ind of this._indicatorMeshes) {
+          ind.material.emissiveIntensity = 0.3 + Math.abs(Math.sin(t * 5)) * 0.7;
+        }
+        break;
+      case 'garrison_marshal':
+        for (const crest of this._crestMeshes) {
+          crest.material.emissiveIntensity = 0.2 + Math.abs(Math.sin(t * 1.2)) * 0.4;
+        }
+        break;
+      case 'oath_blade':
+        for (const crest of this._crestMeshes) {
+          crest.material.emissiveIntensity = 0.3 + Math.abs(Math.sin(t * 2.0)) * 0.5;
         }
         break;
     }

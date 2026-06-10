@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⚔ Balance Editor — Дома Пустыни</title>
+<title>⚔ Balance Editor v2.8 — Дома Пустыни</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -18,6 +18,7 @@
   --green:    #44aa55;
   --red:      #cc4422;
   --blue:     #4488cc;
+  --purple:   #9944cc;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; min-height: 100vh; }
@@ -35,8 +36,32 @@ header {
   top: 0;
   z-index: 100;
 }
-header h1 { color: var(--gold); font-size: 17px; font-weight: 700; letter-spacing: 1px; margin-right: auto; }
+header h1 { color: var(--gold); font-size: 17px; font-weight: 700; letter-spacing: 1px; }
 .badge { background: #3a1a0a; color: #ff8844; border: 1px solid #ff8844; border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; }
+.version { color: var(--muted); font-size: 11px; }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  gap: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 0 16px;
+}
+.tab {
+  padding: 10px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--gold); border-bottom-color: var(--gold); font-weight: 700; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
 
 /* ── Buttons ── */
 .btn { background: var(--panel); border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; transition: border-color .15s, color .15s; }
@@ -45,6 +70,9 @@ header h1 { color: var(--gold); font-size: 17px; font-weight: 700; letter-spacin
 .btn-save:hover { background: #1a3a1a; }
 .btn-save:disabled { opacity: .4; cursor: not-allowed; border-color: var(--border); color: var(--muted); }
 .btn-reset { color: var(--muted); }
+.btn-run { border-color: var(--blue); color: var(--blue); font-weight: 700; }
+.btn-run:hover { background: #0a1a2a; }
+.header-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; flex-wrap: wrap; }
 
 /* ── Diff banner ── */
 #diff-banner { background: #2a1a00; border-bottom: 1px solid var(--gold); padding: 8px 20px; color: var(--chg-text); font-size: 12px; display: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -62,15 +90,21 @@ thead th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: .5px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 thead th.info { color: var(--muted); }
+thead th.col-special { color: var(--purple); }
 
 tbody tr:nth-child(even) { background: rgba(255,255,255,.02); }
 tbody tr:hover { background: rgba(200,150,58,.06); }
 
 td { border: 1px solid var(--border); padding: 5px 8px; text-align: center; vertical-align: middle; }
-td.col-name { text-align: left; font-weight: 600; min-width: 170px; padding-left: 12px; }
+td.col-name { text-align: left; font-weight: 600; min-width: 180px; padding-left: 12px; }
 td.col-type { color: var(--muted); font-size: 11px; min-width: 90px; }
+td.col-rarity { font-size: 11px; font-weight: 700; min-width: 80px; }
+td.col-special-val { font-size: 10px; color: var(--purple); max-width: 200px; white-space: normal; line-height: 1.4; text-align: left; padding: 4px 8px; }
 
 input[type=number] {
   background: transparent;
@@ -91,10 +125,155 @@ td.changed { background: var(--changed); }
 td.changed input { color: var(--chg-text); font-weight: 700; }
 .dash { color: var(--muted); }
 
+/* ── Simulator ── */
+.sim-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  padding: 16px;
+  min-height: calc(100vh - 120px);
+}
+
+.sim-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.sim-panel h2 {
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sim-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.sim-label { color: var(--muted); font-size: 12px; min-width: 90px; }
+
+select {
+  background: #141010;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  min-width: 160px;
+}
+select:focus { border-color: var(--gold); outline: none; }
+
+.dps-result {
+  background: rgba(0,0,0,.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 8px;
+}
+
+.dps-stat { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 12px; }
+.dps-stat:last-child { border-bottom: none; }
+.dps-val { color: var(--gold); font-weight: 700; font-size: 14px; }
+.dps-val.red { color: var(--red); }
+.dps-val.green { color: var(--green); }
+.dps-val.blue { color: var(--blue); }
+
+/* ── Matchup Matrix ── */
+.matrix-wrap { overflow: auto; max-height: calc(100vh - 160px); }
+.matrix-table { border-collapse: collapse; font-size: 11px; }
+.matrix-table th {
+  background: var(--panel);
+  padding: 6px 4px;
+  text-align: center;
+  border: 1px solid var(--border);
+  color: var(--gold);
+  font-size: 10px;
+  white-space: nowrap;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.matrix-table th.row-hdr {
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  min-width: 130px;
+  text-align: left;
+  padding-left: 8px;
+}
+.matrix-table td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: center;
+  font-size: 11px;
+  min-width: 48px;
+}
+.matrix-table td.self { background: #1a1a1a; color: var(--muted); }
+.ttk-fast  { background: rgba(68,170,85,.25);  color: #88ee99; }
+.ttk-med   { background: rgba(200,150,58,.20); color: #e8b84a; }
+.ttk-slow  { background: rgba(204,68,34,.25);  color: #ee8866; }
+.ttk-inf   { background: rgba(255,255,255,.04); color: var(--muted); }
+
+/* ── DPS ranking ── */
+.rank-list { list-style: none; padding: 0; }
+.rank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  font-size: 12px;
+}
+.rank-pos { color: var(--muted); font-size: 10px; min-width: 20px; text-align: right; }
+.rank-bar-wrap { flex: 1; height: 8px; background: rgba(255,255,255,.06); border-radius: 4px; overflow: hidden; }
+.rank-bar { height: 100%; border-radius: 4px; background: var(--gold); transition: width .3s; }
+.rank-dps { font-weight: 700; min-width: 52px; text-align: right; color: var(--gold); }
+.rank-name { min-width: 150px; }
+
+/* ── Special reference ── */
+.special-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+.spec-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.spec-card h3 {
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.spec-type { font-size: 10px; color: var(--purple); background: rgba(153,68,204,.15); border: 1px solid var(--purple); border-radius: 3px; padding: 1px 6px; }
+.spec-rarity { font-size: 10px; font-weight: 700; border-radius: 3px; padding: 1px 6px; }
+.spec-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.spec-stat { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+.spec-stat span:last-child { color: var(--text); font-weight: 600; }
+
 /* ── Status toast ── */
 #status { position: fixed; bottom: 20px; right: 20px; background: var(--panel); border: 1px solid var(--gold); border-radius: 6px; padding: 10px 18px; font-size: 13px; display: none; z-index: 200; }
 #status.ok  { border-color: var(--green); color: var(--green); }
 #status.err { border-color: var(--red); color: var(--red); }
+
+/* ── Rarity colors ── */
+.rarity-common    { color: #a0907a; }
+.rarity-rare      { color: #4488cc; }
+.rarity-epic      { color: #aa55dd; }
+.rarity-legendary { color: #ffcc00; }
 </style>
 </head>
 <body>
@@ -102,20 +281,101 @@ td.changed input { color: var(--chg-text); font-weight: 700; }
 <header>
   <h1>⚔ BALANCE EDITOR</h1>
   <span class="badge">DEV ONLY</span>
-  <button class="btn" onclick="exportExcel()">📤 Экспорт .xlsx</button>
-  <input type="file" id="file-in" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
-  <button class="btn" onclick="document.getElementById('file-in').click()">📥 Импорт .xlsx</button>
-  <button class="btn btn-reset" onclick="resetChanges()">↺ Сбросить</button>
-  <button class="btn btn-save" id="btn-save" onclick="saveToServer()" disabled>💾 Сохранить в cards.js</button>
+  <span class="version">v2.8 · Волна рынка v1.1</span>
+  <div class="header-actions">
+    <button class="btn" onclick="exportExcel()">📤 Экспорт .xlsx</button>
+    <input type="file" id="file-in" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+    <button class="btn" onclick="document.getElementById('file-in').click()">📥 Импорт .xlsx</button>
+    <button class="btn btn-reset" onclick="resetChanges()">↺ Сбросить</button>
+    <button class="btn btn-save" id="btn-save" onclick="saveToServer()" disabled>💾 Сохранить в cards.js</button>
+  </div>
 </header>
 
-<div id="diff-banner"></div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('editor')">📊 Редактор баланса</div>
+  <div class="tab" onclick="switchTab('dps')">⚡ DPS / TTK</div>
+  <div class="tab" onclick="switchTab('matrix')">🗺 Матрица боёв</div>
+  <div class="tab" onclick="switchTab('specials')">✨ Спецспособности</div>
+</div>
 
-<div class="table-wrap">
-  <table>
-    <thead id="thead"></thead>
-    <tbody id="tbody"></tbody>
-  </table>
+<!-- TAB: Editor -->
+<div id="tab-editor" class="tab-content active">
+  <div id="diff-banner"></div>
+  <div class="table-wrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TAB: DPS / TTK -->
+<div id="tab-dps" class="tab-content">
+  <div class="sim-layout">
+    <div class="sim-panel">
+      <h2>⚡ Калькулятор урона</h2>
+      <div class="sim-row">
+        <span class="sim-label">Атакующий</span>
+        <select id="dps-attacker" onchange="calcDps()"></select>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">Цель</span>
+        <select id="dps-target" onchange="calcDps()"></select>
+      </div>
+      <div id="dps-result" class="dps-result">
+        <div class="dps-stat"><span>DPS</span><span class="dps-val" id="r-dps">—</span></div>
+        <div class="dps-stat"><span>HP цели</span><span class="dps-val blue" id="r-hp">—</span></div>
+        <div class="dps-stat"><span>TTK (сек)</span><span class="dps-val green" id="r-ttk">—</span></div>
+        <div class="dps-stat"><span>Тиков атак</span><span class="dps-val" id="r-ticks">—</span></div>
+        <div class="dps-stat"><span>Цена атакующего</span><span class="dps-val" id="r-cost-a">—</span></div>
+        <div class="dps-stat"><span>Цена цели</span><span class="dps-val" id="r-cost-t">—</span></div>
+        <div class="dps-stat"><span>Стоимость убийства</span><span class="dps-val" id="r-efficiency">—</span></div>
+        <hr style="border-color:var(--border);margin:8px 0">
+        <div class="dps-stat"><span>Класс брони атак.</span><span class="dps-val" id="r-armor-a" style="font-size:11px;color:var(--muted)">—</span></div>
+        <div class="dps-stat"><span>Класс брони цели</span><span class="dps-val" id="r-armor-t" style="font-size:11px;color:var(--muted)">—</span></div>
+      </div>
+
+      <div style="margin-top:16px;font-size:11px;color:var(--muted);line-height:1.6">
+        * TTK — без учёта отряда (squadSize)<br>
+        * Без учёта бонусов спецспособностей<br>
+        * Для зданий использует buildingDamage
+      </div>
+    </div>
+
+    <div class="sim-panel">
+      <h2>🏆 Рейтинг DPS</h2>
+      <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+          <input type="radio" name="dps-mode" value="vs_unit" checked onchange="renderDpsRank()"> vs. юниты
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+          <input type="radio" name="dps-mode" value="vs_building" onchange="renderDpsRank()"> vs. здания
+        </label>
+      </div>
+      <ul class="rank-list" id="dps-rank-list"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: Matrix -->
+<div id="tab-matrix" class="tab-content">
+  <div style="padding:12px 16px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+    <span style="font-size:12px;color:var(--muted)">Строка = атакующий, Столбец = цель. Значение = TTK (сек)</span>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11px">
+      <span class="ttk-fast" style="padding:2px 6px;border-radius:3px">&lt; 5 сек</span>
+      <span class="ttk-med"  style="padding:2px 6px;border-radius:3px">5–12 сек</span>
+      <span class="ttk-slow" style="padding:2px 6px;border-radius:3px">&gt; 12 сек</span>
+      <span class="ttk-inf"  style="padding:2px 6px;border-radius:3px">∞ (нет атаки)</span>
+    </div>
+  </div>
+  <div class="matrix-wrap">
+    <table class="matrix-table" id="matrix-table"></table>
+  </div>
+</div>
+
+<!-- TAB: Specials -->
+<div id="tab-specials" class="tab-content">
+  <div class="special-grid" id="specials-grid"></div>
 </div>
 
 <div id="status"></div>
@@ -124,38 +384,54 @@ td.changed input { color: var(--chg-text); font-weight: 700; }
 // ── Column definitions ────────────────────────────────────────────────────────
 
 const COLS = [
-  { key: 'cost',           label: 'Цена',       type: 'int',   min: 1,   max: 10  },
-  { key: 'hp',             label: 'HP',          type: 'int',   min: 1,   max: 9999 },
-  { key: 'speed',          label: 'Скорость',    type: 'float', min: 0.1, max: 5   },
-  { key: 'attackDamage',   label: 'Урон',        type: 'float', min: 0,   max: 999 },
-  { key: 'airDamage',      label: '+Возд.',      type: 'float', min: 0,   max: 999, optional: true },
-  { key: 'buildingDamage', label: 'Урон зд.',    type: 'float', min: 0,   max: 999 },
-  { key: 'attackCooldown', label: 'Кулдаун',     type: 'float', min: 0.1, max: 10  },
-  { key: 'range',          label: 'Дальность',   type: 'float', min: 0,   max: 20  },
-  { key: 'squadSize',      label: 'Отряд',       type: 'int',   min: 1,   max: 4   },
-  { key: 'turnDelay',      label: 'Разворот',    type: 'float', min: 0,   max: 2   },
-  { key: 'peelChance',     label: 'Пилинг',      type: 'float', min: 0,   max: 1   },
-  { key: 'deployDelay',    label: 'Деплой',      type: 'float', min: 0,   max: 5,  nested: 'deployRules' },
+  { key: 'cost',             label: 'Цена',       type: 'int',   min: 1,   max: 10   },
+  { key: 'hp',               label: 'HP',          type: 'int',   min: 1,   max: 9999 },
+  { key: 'speed',            label: 'Скорость',    type: 'float', min: 0.1, max: 5    },
+  { key: 'attackDamage',     label: 'Урон',        type: 'float', min: 0,   max: 999  },
+  { key: 'airDamage',        label: '+Возд.',      type: 'float', min: 0,   max: 999, optional: true },
+  { key: 'buildingDamage',   label: 'Урон зд.',    type: 'float', min: 0,   max: 999  },
+  { key: 'engineerDamage',   label: 'Урон инж.',   type: 'float', min: 0,   max: 999, optional: true },
+  { key: 'attackCooldown',   label: 'Кулдаун',     type: 'float', min: 0.1, max: 10   },
+  { key: 'range',            label: 'Дальность',   type: 'float', min: 0,   max: 20   },
+  { key: 'squadSize',        label: 'Отряд',       type: 'int',   min: 1,   max: 4    },
+  { key: 'turnDelay',        label: 'Разворот',    type: 'float', min: 0,   max: 2    },
+  { key: 'peelChance',       label: 'Пилинг',      type: 'float', min: 0,   max: 1    },
+  { key: 'deployDelay',      label: 'Деплой',      type: 'float', min: 0,   max: 5,   nested: 'deployRules' },
 ];
 
-// Get / set value — supports nested fields (e.g. deployRules.deployDelay)
-function getVal(col, def) {
-  if (col.nested) return def[col.nested]?.[col.key] ?? 0;
-  return def[resolveKey(col.key, def)];
-}
+const RARITY_COLORS = { common: '#a0907a', rare: '#4488cc', epic: '#aa55dd', legendary: '#ffcc00' };
+const RARITY_LABELS = { common: 'обычный', rare: 'редкий', epic: 'эпический', legendary: 'легендарный' };
 
-function setVal(col, def, val) {
-  if (col.nested) {
-    if (!def[col.nested]) def[col.nested] = {};
-    def[col.nested][col.key] = val;
-  } else {
-    def[resolveKey(col.key, def)] = val;
-  }
-}
+const ICONS = {
+  engineer:'⚙', scout:'⚡', swordsman:'⚔', assault:'🛡', archer:'🏹',
+  spearman:'🔱', drone:'✦', heavy:'🪖', guard:'⛨',
+  dune_guard:'⛨', sand_runner:'↯', hook_thrower:'⚓', caravan_shields:'◫',
+  rock_demolitionist:'✶', caravan_duelist:'✙', desert_trapper:'⌖',
+  siege_drone:'◈', garrison_marshal:'♔', oath_blade:'⚜',
+};
 
-const ICONS = { engineer:'⚙', scout:'⚡', swordsman:'⚔', assault:'🛡', archer:'🏹', spearman:'🔱', drone:'✦', heavy:'🪖', guard:'⛨' };
-const ARMOR_RU = { engineer:'Инженер', light:'Лёгкий', medium:'Средний', assault:'Штурм', ranged:'Дальний', antiHeavy:'АнтиТяж', heavy:'Тяжёлый', guard:'Охрана' };
-const TYPE_RU  = { ground:'Наземный', air:'Воздушный' };
+const ARMOR_RU = {
+  engineer:'Инженер', light:'Лёгкий', medium:'Средний', assault:'Штурм',
+  ranged:'Дальний', antiHeavy:'АнтиТяж', heavy:'Тяжёлый', guard:'Охрана',
+  mediumControl:'Контроль', lightRaider:'Рейдер', rangedControl:'Дальн.Контр.',
+  shield:'Щит', explosive:'Взрывной', duelist:'Дуэлянт', trapper:'Ловец',
+  siegeAir:'Осадн.Возд.', legendaryHonorDefender:'Легенд.Защитник',
+  legendaryHonorDuelist:'Легенд.Дуэлянт',
+};
+const TYPE_RU = { ground:'Наземный', air:'Воздушный' };
+
+const SPECIAL_DESCS = {
+  first_hit_slow:            'Первый удар замедляет цель',
+  opening_sprint_building_hit: 'Спринт в начале + ×2 по первому зданию',
+  first_hit_hook:            'Первый удар: крюк (притяжение + корень 0.5с)',
+  front_range_dmg_reduction: 'Снижает дальний урон спереди на 30%',
+  aoe_attack:                'AoE взрыв радиус 1.2 при каждом ударе',
+  duel_bonus:                'Бонус +25% урона по изолированным целям',
+  first_fast_enemy_root:     'Ловушка: мгновенный корень быстрого врага',
+  siege_target_priority:     'Атакует только инженеров и здания',
+  garrison_counter:          'Своя половина −18%. Копит урон → контратака +60%',
+  oath_mark:                 'Охотится за дорогой целью; первый удар +45 и оглушение',
+};
 
 let origData = null;
 let curData  = null;
@@ -169,27 +445,61 @@ async function init() {
     if (!json.ok) throw new Error(json.error);
     origData = deep(json.data);
     curData  = deep(json.data);
-    render();
+    renderEditor();
+    populateSelects();
+    renderDpsRank();
+    renderMatrix();
+    renderSpecials();
   } catch(e) {
     showStatus('Ошибка загрузки: ' + e.message, 'err');
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="20" style="color:var(--red);padding:20px;text-align:center">
+        Запустите: <code>npm run dev</code> — нужен dev-сервер для загрузки данных
+      </td></tr>`;
   }
 }
 
 function deep(o) { return JSON.parse(JSON.stringify(o)); }
 
-// Resolve the actual key for "cost" (engineer uses baseCost)
 function costKey(def) { return def.cost !== undefined ? 'cost' : 'baseCost'; }
-
 function resolveKey(colKey, def) { return colKey === 'cost' ? costKey(def) : colKey; }
 
-// ── Render ────────────────────────────────────────────────────────────────────
+function getVal(col, def) {
+  if (col.nested) return def[col.nested]?.[col.key] ?? null;
+  return def[resolveKey(col.key, def)] ?? null;
+}
 
-function render() {
-  // Header
+function setVal(col, def, val) {
+  if (col.nested) {
+    if (!def[col.nested]) def[col.nested] = {};
+    def[col.nested][col.key] = val;
+  } else {
+    def[resolveKey(col.key, def)] = val;
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['editor','dps','matrix','specials'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+// ── Render editor ─────────────────────────────────────────────────────────────
+
+function renderEditor() {
   document.getElementById('thead').innerHTML =
-    `<tr><th class="info">Юнит</th><th class="info">Тип / Броня</th>` +
-    COLS.map(c => `<th>${c.label}</th>`).join('') +
-    `</tr>`;
+    `<tr>
+      <th class="info">Юнит</th>
+      <th class="info">Тип / Броня</th>
+      <th class="info">Редк.</th>
+      ` + COLS.map(c => `<th>${c.label}</th>`).join('') + `
+      <th class="col-special">Спецспособность</th>
+    </tr>`;
 
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
@@ -205,12 +515,20 @@ function render() {
     tdN.textContent = `${ICONS[id] ?? ''} ${def.name}`;
     tr.appendChild(tdN);
 
-    // Type
+    // Type / Armor
     const tdT = document.createElement('td');
     tdT.className = 'col-type';
     tdT.textContent = `${TYPE_RU[def.unitType] ?? def.unitType} / ${ARMOR_RU[def.armorClass] ?? def.armorClass}`;
     if (def.factionOnly) tdT.textContent += ` ★`;
     tr.appendChild(tdT);
+
+    // Rarity
+    const tdR = document.createElement('td');
+    tdR.className = 'col-rarity';
+    const rarity = def.rarity ?? 'common';
+    tdR.style.color = RARITY_COLORS[rarity] ?? '#a0907a';
+    tdR.textContent = RARITY_LABELS[rarity] ?? rarity;
+    tr.appendChild(tdR);
 
     // Editable columns
     for (const col of COLS) {
@@ -218,7 +536,7 @@ function render() {
       const val = getVal(col, def);
       const origVal = getVal(col, orig);
 
-      if (val === undefined || val === null) {
+      if (val === null || val === undefined) {
         td.innerHTML = '<span class="dash">—</span>';
       } else {
         const inp = document.createElement('input');
@@ -233,12 +551,26 @@ function render() {
           setVal(col, curData[id], v);
           td.classList.toggle('changed', v !== origVal);
           updateDiff();
+          // live-update simulator tabs
+          renderDpsRank();
+          calcDps();
         });
         if (origVal !== undefined && val !== origVal) td.classList.add('changed');
         td.appendChild(inp);
       }
       tr.appendChild(td);
     }
+
+    // Special ability
+    const tdS = document.createElement('td');
+    tdS.className = 'col-special-val';
+    const st = def.special?.type;
+    if (st) {
+      tdS.innerHTML = `<span class="spec-type">${st}</span><br>${SPECIAL_DESCS[st] ?? ''}`;
+    } else {
+      tdS.innerHTML = '<span class="dash">—</span>';
+    }
+    tr.appendChild(tdS);
 
     tbody.appendChild(tr);
   }
@@ -254,11 +586,10 @@ function updateDiff() {
     const orig = origData[id];
     for (const col of COLS) {
       const c = getVal(col, def), o = getVal(col, orig);
-      if (c !== undefined && o !== undefined && c !== o)
+      if (c !== null && o !== null && c !== o)
         changes.push(`${def.name}: ${col.label} ${o}→${c}`);
     }
   }
-
   const banner = document.getElementById('diff-banner');
   if (changes.length === 0) {
     banner.style.display = 'none';
@@ -267,62 +598,243 @@ function updateDiff() {
     const preview = changes.slice(0, 6).join('  |  ');
     banner.textContent = `✎ ${changes.length} изменений  —  ${preview}${changes.length > 6 ? '  …ещё ' + (changes.length - 6) : ''}`;
   }
-
   document.getElementById('btn-save').disabled = changes.length === 0;
 }
 
 function resetChanges() {
   curData = deep(origData);
-  render();
+  renderEditor();
+  renderDpsRank();
+  calcDps();
 }
 
-// ── Save to server ────────────────────────────────────────────────────────────
+// ── Save ──────────────────────────────────────────────────────────────────────
 
 async function saveToServer() {
   showStatus('Сохранение…', null);
   try {
     const res  = await fetch('/api/dev/units', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(curData),
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.error);
     origData = deep(curData);
-    render();
+    renderEditor();
     showStatus('✓ Сохранено в cards.js', 'ok');
   } catch(e) {
     showStatus('Ошибка: ' + e.message, 'err');
   }
 }
 
+// ── DPS Calculator ────────────────────────────────────────────────────────────
+
+function populateSelects() {
+  const opts = Object.entries(curData).map(([id, def]) =>
+    `<option value="${id}">${ICONS[id] ?? ''} ${def.name}</option>`
+  ).join('');
+  document.getElementById('dps-attacker').innerHTML = opts;
+  document.getElementById('dps-target').innerHTML   = opts;
+  // Set default targets
+  const ids = Object.keys(curData);
+  if (ids.length > 1) document.getElementById('dps-target').value = ids[1];
+  calcDps();
+}
+
+function getBaseDmg(attacker, target) {
+  if (!attacker.attackDamage && !attacker.buildingDamage) return 0;
+  if (target.unitType === 'building' || target.armorClass === 'building') {
+    return attacker.buildingDamage ?? 0;
+  }
+  if (target.armorClass === 'engineer' || (target.cost <= 2 && target.unitType === 'ground')) {
+    return attacker.engineerDamage ?? attacker.attackDamage ?? 0;
+  }
+  let dmg = attacker.attackDamage ?? 0;
+  if (target.unitType === 'air' && attacker.airDamage) dmg = attacker.airDamage;
+  return dmg;
+}
+
+function calcTTK(attackerId, targetId) {
+  const a = curData[attackerId];
+  const t = curData[targetId];
+  if (!a || !t) return Infinity;
+  const dmg = getBaseDmg(a, t);
+  if (!dmg || !a.attackCooldown) return Infinity;
+  const dps = dmg / a.attackCooldown;
+  if (dps <= 0) return Infinity;
+  return (t.hp ?? 0) / dps;
+}
+
+function calcDps() {
+  if (!curData) return;
+  const aId = document.getElementById('dps-attacker').value;
+  const tId = document.getElementById('dps-target').value;
+  const a   = curData[aId];
+  const t   = curData[tId];
+  if (!a || !t) return;
+
+  const dmg  = getBaseDmg(a, t);
+  const cd   = a.attackCooldown ?? 1;
+  const dps  = dmg > 0 ? (dmg / cd) : 0;
+  const hp   = t.hp ?? 0;
+  const ttk  = dps > 0 ? hp / dps : Infinity;
+  const ticks = dps > 0 ? Math.ceil(hp / dmg) : Infinity;
+  const ca   = a.cost ?? 0;
+  const ct   = t.cost ?? 0;
+  const eff  = ca > 0 && dps > 0 ? (ct / ca).toFixed(2) : '—';
+
+  document.getElementById('r-dps').textContent   = dps > 0 ? dps.toFixed(1) : '0';
+  document.getElementById('r-hp').textContent    = hp;
+  document.getElementById('r-ttk').textContent   = isFinite(ttk) ? ttk.toFixed(1) + ' с' : '∞';
+  document.getElementById('r-ticks').textContent = isFinite(ticks) ? ticks : '∞';
+  document.getElementById('r-cost-a').textContent = ca + ' 🌶';
+  document.getElementById('r-cost-t').textContent = ct + ' 🌶';
+  document.getElementById('r-efficiency').textContent = eff !== '—' ? eff + 'x' : '—';
+  document.getElementById('r-armor-a').textContent = ARMOR_RU[a.armorClass] ?? a.armorClass ?? '—';
+  document.getElementById('r-armor-t').textContent = ARMOR_RU[t.armorClass] ?? t.armorClass ?? '—';
+
+  // Color TTK
+  const ttkEl = document.getElementById('r-ttk');
+  ttkEl.className = 'dps-val';
+  if (!isFinite(ttk)) ttkEl.classList.add('red');
+  else if (ttk < 5)   ttkEl.classList.add('green');
+  else if (ttk < 12)  ; // default gold
+  else                ttkEl.classList.add('red');
+}
+
+// ── DPS Ranking ───────────────────────────────────────────────────────────────
+
+function renderDpsRank() {
+  if (!curData) return;
+  const mode = document.querySelector('input[name="dps-mode"]:checked')?.value ?? 'vs_unit';
+  const vsBuilding = mode === 'vs_building';
+
+  const entries = [];
+  for (const [id, def] of Object.entries(curData)) {
+    const dmg = vsBuilding ? (def.buildingDamage ?? 0) : (def.attackDamage ?? 0);
+    const cd  = def.attackCooldown ?? 1;
+    const dps = dmg > 0 ? dmg / cd : 0;
+    if (dps > 0) entries.push({ id, def, dps });
+  }
+  entries.sort((a, b) => b.dps - a.dps);
+
+  const maxDps = entries[0]?.dps ?? 1;
+  const list   = document.getElementById('dps-rank-list');
+  list.innerHTML = entries.map((e, i) => {
+    const pct = (e.dps / maxDps * 100).toFixed(1);
+    const rc  = RARITY_COLORS[e.def.rarity ?? 'common'];
+    return `
+      <li class="rank-item">
+        <span class="rank-pos">#${i + 1}</span>
+        <span class="rank-name" style="color:${rc}">${ICONS[e.id] ?? ''} ${e.def.name}</span>
+        <div class="rank-bar-wrap">
+          <div class="rank-bar" style="width:${pct}%;background:${rc}"></div>
+        </div>
+        <span class="rank-dps" style="color:${rc}">${e.dps.toFixed(1)}</span>
+      </li>`;
+  }).join('');
+}
+
+// ── Matchup Matrix ────────────────────────────────────────────────────────────
+
+function renderMatrix() {
+  if (!curData) return;
+  const ids  = Object.keys(curData);
+  const defs = curData;
+  const tbl  = document.getElementById('matrix-table');
+  tbl.innerHTML = '';
+
+  // Header row
+  const hdr = document.createElement('tr');
+  hdr.innerHTML = `<th class="row-hdr">Атак. ↓ / Цель →</th>` +
+    ids.map(id => `<th title="${defs[id].name}">${ICONS[id] ?? id.slice(0,4)}</th>`).join('');
+  tbl.appendChild(hdr);
+
+  // Data rows
+  for (const aId of ids) {
+    const tr = document.createElement('tr');
+    const aName = `${ICONS[aId] ?? ''} ${defs[aId].name}`;
+    tr.innerHTML = `<th class="row-hdr">${aName}</th>`;
+
+    for (const tId of ids) {
+      const td = document.createElement('td');
+      if (aId === tId) {
+        td.className = 'self';
+        td.textContent = '—';
+      } else {
+        const ttk = calcTTK(aId, tId);
+        if (!isFinite(ttk)) {
+          td.className = 'ttk-inf';
+          td.textContent = '∞';
+        } else {
+          td.textContent = ttk.toFixed(1);
+          if      (ttk < 5)  td.className = 'ttk-fast';
+          else if (ttk < 12) td.className = 'ttk-med';
+          else                td.className = 'ttk-slow';
+        }
+        td.title = `${defs[aId].name} → ${defs[tId].name}: TTK ${isFinite(ttk) ? ttk.toFixed(2) + 'с' : '∞'}`;
+      }
+      tr.appendChild(td);
+    }
+
+    tbl.appendChild(tr);
+  }
+}
+
+// ── Specials Reference ────────────────────────────────────────────────────────
+
+function renderSpecials() {
+  if (!curData) return;
+  const grid = document.getElementById('specials-grid');
+  grid.innerHTML = '';
+
+  for (const [id, def] of Object.entries(curData)) {
+    if (!def.special?.type) continue;
+    const rarity = def.rarity ?? 'common';
+    const rc     = RARITY_COLORS[rarity];
+    const rl     = RARITY_LABELS[rarity];
+
+    const sp  = def.special;
+    const statLines = Object.entries(sp)
+      .filter(([k]) => k !== 'type')
+      .map(([k, v]) => `<div class="spec-stat"><span>${k}</span><span>${v}</span></div>`)
+      .join('');
+
+    const card = document.createElement('div');
+    card.className = 'spec-card';
+    card.style.borderColor = rc;
+    card.innerHTML = `
+      <h3>
+        ${ICONS[id] ?? ''} ${def.name}
+        <span class="spec-type">${sp.type}</span>
+        <span class="spec-rarity" style="color:${rc};border:1px solid ${rc};background:${rc}22">${rl}</span>
+      </h3>
+      <p class="spec-desc">${SPECIAL_DESCS[sp.type] ?? sp.type}</p>
+      ${statLines ? `<div style="margin-top:8px">${statLines}</div>` : ''}
+    `;
+    grid.appendChild(card);
+  }
+}
+
 // ── Excel Export ──────────────────────────────────────────────────────────────
 
 function exportExcel() {
-  const headers = ['ID', 'Название', ...COLS.map(c => c.label), 'Тип', 'Класс брони', 'Только фракция'];
+  const headers = ['ID', 'Название', 'Редкость', 'Фракция', 'Спецспособность', ...COLS.map(c => c.label), 'Тип', 'Класс брони'];
   const rows = [headers];
 
   for (const [id, def] of Object.entries(curData)) {
-    const row = [id, def.name];
-    for (const col of COLS) {
-      const v = getVal(col, def);
-      row.push(v ?? '');
-    }
-    row.push(def.unitType ?? '', def.armorClass ?? '', def.factionOnly ?? '');
+    const row = [id, def.name, def.rarity ?? 'common', def.faction ?? '', def.special?.type ?? ''];
+    for (const col of COLS) { row.push(getVal(col, def) ?? ''); }
+    row.push(def.unitType ?? '', def.armorClass ?? '');
     rows.push(row);
   }
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  // Column widths
-  ws['!cols'] = headers.map((_, ci) => ({
-    wch: Math.max(...rows.map(r => String(r[ci] ?? '').length)) + 2
-  }));
-  // Freeze first row
+  ws['!cols'] = headers.map((_, ci) => ({ wch: Math.max(...rows.map(r => String(r[ci] ?? '').length)) + 2 }));
   ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Balance');
-  XLSX.writeFile(wb, 'doma-pustyni-balance.xlsx');
+  XLSX.writeFile(wb, 'doma-pustyni-balance-v2.8.xlsx');
   showStatus('✓ Файл скачан', 'ok');
 }
 
@@ -338,15 +850,12 @@ function importExcel(e) {
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
       if (rows.length < 2) { showStatus('Пустой файл', 'err'); return; }
-
       const hdrs = rows[0];
       let count  = 0;
-
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i];
         const id  = row[hdrs.indexOf('ID')] ?? row[hdrs.indexOf('id')];
         if (!id || !curData[id]) continue;
-
         for (const col of COLS) {
           const colIdx = hdrs.indexOf(col.label);
           if (colIdx === -1) continue;
@@ -357,14 +866,9 @@ function importExcel(e) {
           if (nv !== getVal(col, curData[id])) { setVal(col, curData[id], nv); count++; }
         }
       }
-
       e.target.value = '';
-      if (count === 0) {
-        showStatus('Нет изменений', null);
-      } else {
-        render();
-        showStatus(`✓ Импортировано ${count} изменений`, 'ok');
-      }
+      if (count === 0) { showStatus('Нет изменений', null); }
+      else { renderEditor(); renderDpsRank(); calcDps(); renderMatrix(); showStatus(`✓ Импортировано ${count} изменений`, 'ok'); }
     } catch(err) {
       showStatus('Ошибка импорта: ' + err.message, 'err');
     }

@@ -1,4 +1,4 @@
-import { CARD_DEFS, CARD_ICONS, CARD_COLORS, DECK_SIZE, MAX_COPIES_PER_CARD } from './cards.js';
+import { CARD_DEFS, CARD_ICONS, CARD_COLORS, RARITY_COLORS, RARITY_LABELS, DECK_SIZE, MAX_COPIES_PER_CARD } from './cards.js';
 
 const DECK_STORAGE_KEY = 'dp-saved-deck-v1';
 
@@ -91,12 +91,20 @@ export class DeckBuilder {
 
       const costLabel = id === 'engineer' ? '2–4 🌶' : `${def.cost} 🌶`;
 
+      const rarity      = def.rarity ?? 'common';
+      const rarityColor = RARITY_COLORS[rarity] ?? RARITY_COLORS.common;
+      const rarityLabel = RARITY_LABELS[rarity] ?? '';
+
       const el = document.createElement('div');
       el.className = 'db-card';
+      el.dataset.rarity = rarity;
       if (def.factionOnly) el.classList.add('db-card-faction');
+      el.style.setProperty('--rarity-color', rarityColor);
+      el.style.borderColor = rarityColor + '44'; // subtle by default, CSS brightens on hover/selected
       el.innerHTML = `
         <div class="db-card-header" style="background:${CARD_COLORS[id]}">
           <span class="db-card-icon">${CARD_ICONS[id]}</span>
+          <span class="db-card-rarity" style="color:${rarityColor}">${rarityLabel}</span>
         </div>
         <div class="db-card-body">
           <div class="db-card-name">${def.name}</div>
@@ -200,6 +208,9 @@ export class DeckBuilder {
       if (countEl)  countEl.textContent  = cur;
       if (plusEl)   plusEl.disabled  = total >= DECK_SIZE || cur >= MAX_COPIES_PER_CARD;
       if (minusEl)  minusEl.disabled = cur <= 0;
+      // visual selected state on the card itself
+      const cardEl = plusEl?.closest('.db-card');
+      if (cardEl) cardEl.classList.toggle('has-count', cur > 0);
     }
   }
 

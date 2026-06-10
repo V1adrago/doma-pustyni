@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import { Unit, LANE_X, RESOURCE_NODE_POS, tickVfx,
          spawnSlash, spawnThrust, spawnBolt, spawnImpact,
-         spawnDronePulse, spawnEngineerRing, spawnShieldFlash } from './units.js';
+         spawnDronePulse, spawnEngineerRing, spawnShieldFlash,
+         spawnRootNet, spawnHookLine, spawnAoeBlast, spawnOathMark, spawnCounterFlash,
+         applySlowEffect, applyRootEffect, applyStunEffect, isUnitRooted, getUnitSpeedFactor,
+       } from './units.js';
 import { CARD_DEFS } from './cards.js';
 
 const TOWER_DATA = {
@@ -31,6 +34,95 @@ function dist2D(ax, az, bx, bz) {
   return Math.sqrt(dx * dx + dz * dz);
 }
 
+// ── Special mechanic helpers ──────────────────────────────────────────────────
+
+// Is the unit on its own half of the map?
+function _isOnOwnHalf(unit) {
+  return unit.side === 'player' ? unit.position.z > 0 : unit.position.z < 0;
+}
+
+// Is target "isolated"? No allies of the target within radius.
+function _isIsolated(target, allUnits, radius) {
+  for (const u of allUnits) {
+    if (!u.alive || u === target) continue;
+    if (u.side !== target.side) continue;
+    if (dist2D(target.position.x, target.position.z, u.position.x, u.position.z) <= radius) return false;
+  }
+  return true;
+}
+
+// Find best siege drone target: engineer first, then towers in priority order
+function _findSiegeDroneTarget(unit, allUnits, towerManager, towerData) {
+  const enemySide = unit.side === 'player' ? 'enemy' : 'player';
+  // Priority 1: enemy engineer
+  for (const u of allUnits) {
+    if (!u.alive || u.side !== enemySide) continue;
+    if (u.cardId !== 'engineer') continue;
+    const d = dist2D(unit.position.x, unit.position.z, u.position.x, u.position.z);
+    if (d <= unit.def.range + 15) return { type: 'engineer', unit: u };
+  }
+  return null; // towers handled in main loop
+}
+
+// Oath blade: find the most expensive enemy unit in radius
+function _findOathTarget(oathUnit, allUnits) {
+  const spec    = oathUnit.def.special;
+  const enemySide = oathUnit.side === 'player' ? 'enemy' : 'player';
+  let best = null, bestCost = -1;
+  for (const u of allUnits) {
+    if (!u.alive || u.side !== enemySide) continue;
+    if (u.cardId === 'engineer') continue;
+    const cost = u.def.cost ?? 0;
+    const d    = dist2D(oathUnit.position.x, oathUnit.position.z, u.position.x, u.position.z);
+    if (d > spec.radius) continue;
+    if (cost > bestCost || (cost === bestCost && d < dist2D(oathUnit.position.x, oathUnit.position.z, best?.position.x ?? 0, best?.position.z ?? 0))) {
+      bestCost = cost; best = u;
+    }
+  }
+  return best;
+}
+
+// Garrison marshal: track accumulated incoming damage for counter attack
+function _trackMarshalDamage(unit, dmg) {
+  const sp = unit._special;
+  if (!sp || unit.cardId !== 'garrison_marshal') return;
+  sp.damageAccum += dmg;
+  if (sp.damageAccum >= unit.def.special.damageTakenForCounter) {
+    sp.counterReady = true;
+    sp.damageAccum -= unit.def.special.damageTakenForCounter;
+  }
+}
+
+// Apply all incoming damage modifiers for a target unit
+function _calcIncomingDmg(attacker, target, baseDmg, nowSec) {
+  let dmg = baseDmg;
+
+  // caravan_shields: -30% from ranged attackers in front
+  if (target.def.special?.type === 'front_ranged_reduction' && attacker.def.range > 2.2) {
+    const frontDir = target.side === 'player' ? -1 : 1;
+    const dz = target.position.z - attacker.position.z;
+    if (Math.sign(dz) === frontDir) { // attacker is in front of shields
+      dmg *= (1 - target.def.special.reductionPct);
+    }
+  }
+
+  // garrison_marshal: own-half reduction
+  if (target.cardId === 'garrison_marshal' && _isOnOwnHalf(target)) {
+    dmg *= (1 - target.def.special.ownHalfReductionPct);
+  }
+  _trackMarshalDamage(target, dmg);
+
+  // caravan_duelist: incoming reduction from an isolated attacker
+  if (target.cardId === 'caravan_duelist' && attacker.def.armorClass !== undefined) {
+    // reduction only when the attacker itself is "alone" fighting the duelist
+    dmg *= (1 - target.def.special.incomingReductionPct);
+  }
+
+  return dmg;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function calcUnitDamage(attacker, target) {
   if (attacker.cardId === 'archer') {
     return target.def.unitType === 'air' ? attacker.def.airDamage : attacker.def.attackDamage;
@@ -38,6 +130,9 @@ function calcUnitDamage(attacker, target) {
   if (attacker.cardId === 'spearman') {
     const ac = target.def.armorClass;
     if (ac === 'heavy' || ac === 'assault') return 65;
+  }
+  if (attacker.cardId === 'siege_drone') {
+    return target.cardId === 'engineer' ? (attacker.def.engineerDamage ?? attacker.def.attackDamage) : attacker.def.attackDamage;
   }
   return attacker.def.attackDamage;
 }
@@ -62,16 +157,38 @@ function _spawnMemberAttackVfx(scene, cardId, fromPos, toPos) {
       spawnImpact(scene, toPos.clone(), 0xbbaa88, false);
       break;
     case 'guard':
+    case 'garrison_marshal':
       spawnSlash(scene, fromPos.clone(), 0xffd700, 1.0);
       break;
-    case 'archer': {
+    case 'archer':
+    case 'hook_thrower': {
       const from = fromPos.clone(); from.y += 0.5;
       const to   = toPos.clone();   to.y   += 0.4;
-      spawnBolt(scene, from, to, 0xffff66);
+      spawnBolt(scene, from, to, cardId === 'hook_thrower' ? 0xffcc44 : 0xffff66);
       break;
     }
     case 'drone':
+    case 'siege_drone':
       spawnDronePulse(scene, fromPos.clone(), toPos.clone());
+      break;
+    case 'rock_demolitionist':
+      spawnImpact(scene, toPos.clone(), 0xff6622, true);
+      break;
+    case 'dune_guard':
+      spawnSlash(scene, fromPos.clone(), 0xcc9944, 0.8);
+      break;
+    case 'sand_runner':
+      spawnSlash(scene, fromPos.clone(), 0xffcc44, 0.65);
+      break;
+    case 'caravan_shields':
+      spawnSlash(scene, fromPos.clone(), 0x6699dd, 0.85);
+      break;
+    case 'caravan_duelist':
+    case 'oath_blade':
+      spawnSlash(scene, fromPos.clone(), 0xffd700, 1.1);
+      break;
+    case 'desert_trapper':
+      spawnSlash(scene, fromPos.clone(), 0xaa8833, 0.75);
       break;
   }
 }
@@ -83,6 +200,17 @@ function _spawnMemberTowerVfx(scene, cardId, towerPos) {
     case 'heavy':   spawnImpact(scene, towerPos, 0xaa8866, true);  break;
     default:        spawnImpact(scene, towerPos, 0xbbaa88, false); break;
   }
+}
+
+function towerInRange_siege(unit, tp, towerManager) {
+  const chain = LANE_TOWER_CHAIN[unit.side][unit.lane];
+  for (const tid of chain) {
+    if (!towerManager.towers[tid]?.alive) continue;
+    const ttd = TOWER_DATA[tid];
+    const d   = dist2D(unit.position.x, unit.position.z, ttd.x, ttd.z);
+    if (d <= unit.def.range) return true;
+  }
+  return false;
 }
 
 const FLASH_DURATION            = 0.18;
@@ -220,6 +348,34 @@ export class UnitManager {
       // Squad model positions (always update so peeling/returning is smooth even while turning)
       unit.updateSquadMemberPositions(delta);
 
+      // ── sand_runner: sprint timer ─────────────────────────────────────
+      if (unit.cardId === 'sand_runner' && unit._special?.sprintActive) {
+        unit._special.sprintTimer -= delta;
+        if (unit._special.sprintTimer <= 0) unit._special.sprintActive = false;
+      }
+
+      // ── desert_trapper: one-shot trap on nearby fast enemy ────────────
+      if (unit.cardId === 'desert_trapper' && !unit._special?.trapUsed) {
+        const spec = unit.def.special;
+        for (const e of this.units) {
+          if (!e.alive || e.side === unit.side) continue;
+          if (!spec.targetArmor.includes(e.def.armorClass)) continue;
+          const d = dist2D(unit.position.x, unit.position.z, e.position.x, e.position.z);
+          if (d <= spec.radius && !isUnitRooted(e, now)) {
+            applyRootEffect(e, spec.rootDuration, now);
+            spawnRootNet(this.scene, e.position.clone());
+            unit._special.trapUsed = true;
+            break;
+          }
+        }
+      }
+
+      // ── oath_blade: assign oath target on spawn ───────────────────────
+      if (unit.cardId === 'oath_blade' && !unit._special?.oathTarget) {
+        unit._special.oathTarget = _findOathTarget(unit, this.units);
+        if (unit._special.oathTarget) spawnOathMark(this.scene, unit._special.oathTarget.position.clone());
+      }
+
       // ── Engineer ────────────────────────────────────────────────────────
       if (unit.cardId === 'engineer') {
         const dx = RESOURCE_NODE_POS.x - unit.position.x;
@@ -235,6 +391,15 @@ export class UnitManager {
         }
         continue;
       }
+
+      // ── Root / stun: skip movement and possibly attack ────────────────
+      if (isUnitRooted(unit, now)) {
+        // Rooted: can't move but can still attack if enemy is already in range
+        // (don't skip the whole loop — fall through to attack code below)
+        // We'll skip movement later via `_rootedThisTick` flag
+      }
+      const _rootedThisTick = isUnitRooted(unit, now);
+      const _speedFactor    = getUnitSpeedFactor(unit, now);
 
       // ── Turning state: unit stopped, waiting to face a target behind it ─
       if (unit.isTurning) {
@@ -263,6 +428,64 @@ export class UnitManager {
       const blockingTowerId = chain.length > 1 ? chain[0] : null;
       const pathBlocked = blockingTowerId ? towerManager.towers[blockingTowerId]?.alive === true : false;
 
+      // ── siege_drone: special target logic ────────────────────────────
+      if (unit.cardId === 'siege_drone') {
+        // Find enemy engineer
+        const enemySide = unit.side === 'player' ? 'enemy' : 'player';
+        let siegeTarget = null;
+        let siegeDist   = Infinity;
+        for (const e of this.units) {
+          if (!e.alive || e.side !== enemySide || e.cardId !== 'engineer') continue;
+          const d = dist2D(unit.position.x, unit.position.z, e.position.x, e.position.z);
+          if (d < siegeDist) { siegeDist = d; siegeTarget = e; }
+        }
+        // Attack engineer if in range
+        if (siegeTarget && siegeDist <= unit.def.range) {
+          if (unit.attackTimer === 0) {
+            let dmg = unit.def.engineerDamage ?? unit.def.attackDamage;
+            siegeTarget.takeDamage(dmg);
+            siegeTarget.onHit(this.scene);
+            spawnDronePulse(this.scene, unit.position.clone(), siegeTarget.position.clone());
+            if (siegeTarget.hp <= 0) siegeTarget.remove();
+            unit.attackTimer = unit.def.attackCooldown;
+          }
+        } else if (siegeTarget) {
+          // Move toward engineer
+          if (!_rootedThisTick) {
+            const dx = siegeTarget.position.x - unit.position.x;
+            const dz = siegeTarget.position.z - unit.position.z;
+            const d  = Math.sqrt(dx * dx + dz * dz);
+            if (d > 0.01) {
+              unit.position.x += (dx / d) * unit.def.speed * _speedFactor * delta;
+              unit.position.z += (dz / d) * unit.def.speed * _speedFactor * delta;
+            }
+          }
+        } else {
+          // No engineer — attack tower
+          if (towerInRange_siege(unit, tp, towerManager)) {
+            if (unit.attackTimer === 0) {
+              const defSide = targetTowerId.startsWith('player') ? 'player' : 'enemy';
+              const isCit   = towerManager.towers[targetTowerId]?.isCitadel;
+              let   dmg     = unit.def.buildingDamage;
+              if (fm && isCit) dmg = fm.applyShieldReduction(defSide, dmg);
+              spawnImpact(this.scene, new THREE.Vector3(tp.x, 0.5, tp.z), 0x448866, true);
+              const dest = towerManager.damageTower(targetTowerId, dmg);
+              if (dest) { onTowerDestroyed(targetTowerId); }
+              else if (fm && isCit) { const t = towerManager.towers[targetTowerId]; fm.checkCitadelShield(defSide, t.hp, t.maxHp); }
+              unit.attackTimer = unit.def.attackCooldown;
+            }
+          } else if (!_rootedThisTick) {
+            const dx = tp.x - unit.position.x, dz = tp.z - unit.position.z;
+            const d  = Math.sqrt(dx * dx + dz * dz);
+            if (d > 0.01) {
+              unit.position.x += (dx / d) * unit.def.speed * _speedFactor * delta;
+              unit.position.z += (dz / d) * unit.def.speed * _speedFactor * delta;
+            }
+          }
+        }
+        continue; // siege_drone handled — skip normal AI
+      }
+
       // ── Find closest enemy unit (aggro radius = range + 2.5) ───────────
       const aggroRadius = Math.max(unit.def.range * 1.5, 2.5);
       let closestEnemy = null, closestDist = Infinity;
@@ -271,6 +494,12 @@ export class UnitManager {
         if (!unit.def.targetTypes.includes(e.def.unitType)) continue;
         const d = dist2D(unit.position.x, unit.position.z, e.position.x, e.position.z);
         if (d < closestDist) { closestDist = d; closestEnemy = e; }
+      }
+      // oath_blade: if oathTarget alive, prefer it as aggro target
+      if (unit.cardId === 'oath_blade' && unit._special?.oathTarget?.alive) {
+        const oathD = dist2D(unit.position.x, unit.position.z, unit._special.oathTarget.position.x, unit._special.oathTarget.position.z);
+        closestEnemy = unit._special.oathTarget;
+        closestDist  = oathD;
       }
 
       const enemyInRange   = closestEnemy && closestDist <= unit.def.range;
@@ -349,11 +578,87 @@ export class UnitManager {
               ? member.subTarget : closestEnemy;
 
             let dmg = calcUnitDamage(unit, mTarget) / activeCount;
+
+            // ── caravan_duelist: duel bonus ──────────────────────────────
+            if (unit.cardId === 'caravan_duelist' && mTarget.def.unitType !== 'building') {
+              if (_isIsolated(mTarget, this.units, unit.def.special.isolatedRadius)) {
+                dmg *= (1 + unit.def.special.damageBonusPct);
+              }
+            }
+
+            // ── garrison_marshal: counter attack ─────────────────────────
+            if (unit.cardId === 'garrison_marshal' && unit._special?.counterReady) {
+              dmg *= (1 + unit.def.special.counterDamageBonusPct);
+              unit._special.counterReady = false;
+              spawnCounterFlash(this.scene, unit.position.clone());
+              // light target knockback
+              const lightArmors = ['light', 'lightRaider', 'rangedControl', 'explosive', 'duelist', 'trapper'];
+              if (lightArmors.includes(mTarget.def.armorClass)) {
+                const kbDir = mTarget.side === 'player' ? 1 : -1;
+                mTarget.position.z += kbDir * 0.5;
+              }
+            }
+
+            // ── oath_blade: oath mark first hit ──────────────────────────
+            if (unit.cardId === 'oath_blade' && mTarget === unit._special?.oathTarget && !unit._special.firstHitDone) {
+              dmg += unit.def.special.firstHitFlatBonus;
+              if ((mTarget.def.cost ?? 0) >= unit.def.special.minTargetCost) {
+                dmg *= (1 + unit.def.special.expensiveTargetBonusPct);
+              }
+              unit._special.firstHitDone = true;
+              applyStunEffect(mTarget, unit.def.special.microStun, now);
+              spawnCounterFlash(this.scene, mTarget.position.clone());
+            }
+
+            // ── incoming damage modifiers (shields, garrison, duelist) ───
+            dmg = _calcIncomingDmg(unit, mTarget, dmg, now);
             if (fm) dmg = fm.applyBattleOrderDefense(mTarget, dmg, towerManager);
+
             mTarget.takeDamage(dmg);
             mTarget.onHit(this.scene);
             _spawnMemberAttackVfx(this.scene, unit.cardId,
               getMemberWorldPos(unit, member), mTarget.position.clone());
+
+            // ── dune_guard: first-hit slow ────────────────────────────────
+            if (unit.cardId === 'dune_guard' && !unit._special.slowUsed && mTarget.def.unitType !== 'air') {
+              unit._special.slowUsed = true;
+              applySlowEffect(mTarget, unit.def.special.slowPct, unit.def.special.duration, now);
+            }
+
+            // ── hook_thrower: first-hit hook ──────────────────────────────
+            if (unit.cardId === 'hook_thrower' && !unit._special.hookUsed &&
+                mTarget.def.unitType === 'ground' && !['heavy', 'legendaryHonorDefender'].includes(mTarget.def.armorClass)) {
+              unit._special.hookUsed = true;
+              spawnHookLine(this.scene, unit.position.clone(), mTarget.position.clone());
+              // Pull target slightly toward attacker
+              const pdx = unit.position.x - mTarget.position.x;
+              const pdz = unit.position.z - mTarget.position.z;
+              const pd  = Math.sqrt(pdx * pdx + pdz * pdz);
+              if (pd > 0.01) {
+                mTarget.position.x += (pdx / pd) * unit.def.special.pullDistance;
+                mTarget.position.z += (pdz / pd) * unit.def.special.pullDistance;
+              }
+              applyRootEffect(mTarget, unit.def.special.interruptDuration, now);
+            }
+
+            // ── sand_runner: first building bonus hit ─────────────────────
+            // (handled in tower block below)
+
+            // ── rock_demolitionist: AoE splash ────────────────────────────
+            if (unit.cardId === 'rock_demolitionist') {
+              spawnAoeBlast(this.scene, mTarget.position.clone(), unit.def.special.radius);
+              for (const splash of this.units) {
+                if (!splash.alive || splash.side === unit.side || splash === mTarget) continue;
+                if (splash.def.unitType === 'air') continue;
+                const sd = dist2D(splash.position.x, splash.position.z, mTarget.position.x, mTarget.position.z);
+                if (sd <= unit.def.special.radius) {
+                  const sDmg = _calcIncomingDmg(unit, splash, dmg * 0.7, now);
+                  splash.takeDamage(sDmg);
+                  if (splash.hp <= 0) splash.remove();
+                }
+              }
+            }
+
             if (mTarget.hp <= 0) mTarget.remove();
           }
 
@@ -370,6 +675,14 @@ export class UnitManager {
           // Each active member deals buildingDamage to the tower
           for (let mi = 0; mi < activeCount; mi++) {
             let dmg = unit.def.buildingDamage / activeCount;
+
+            // ── sand_runner: sprint first-building bonus ─────────────────
+            if (unit.cardId === 'sand_runner' && unit._special?.sprintActive && !unit._special.firstBuildingBonusUsed) {
+              dmg *= unit.def.special.firstBuildingHitMultiplier;
+              unit._special.firstBuildingBonusUsed = true;
+              spawnAoeBlast(this.scene, towerPos, 0.8);
+            }
+
             if (fm && isCitadel) dmg = fm.applyShieldReduction(defSide, dmg);
             _spawnMemberTowerVfx(this.scene, unit.cardId, towerPos);
             const destroyed = towerManager.damageTower(targetTowerId, dmg);
@@ -388,12 +701,24 @@ export class UnitManager {
       } else {
         // Move toward target tower, or toward the closest enemy if it is ahead.
         // Behind-enemies are ignored: unit keeps advancing instead of turning back.
+        if (_rootedThisTick) continue; // skip movement if rooted/stunned
         let destX = tp.x, destZ = tp.z, dist = dToTower;
         if (enemyInAggro && closestEnemyIsAhead) {
           destX = closestEnemy.position.x;
           destZ = closestEnemy.position.z;
           dist  = closestDist;
         }
+        // oath_blade speed boost while chasing oath target
+        let moveSpeed = unit.def.speed;
+        if (unit.cardId === 'oath_blade' && unit._special?.oathTarget?.alive && !unit._special.firstHitDone) {
+          moveSpeed *= (1 + unit.def.special.speedBonusPct);
+        }
+        // sand_runner sprint speed
+        if (unit.cardId === 'sand_runner' && unit._special?.sprintActive) {
+          moveSpeed = unit.def.special.sprintSpeed;
+        }
+        moveSpeed *= _speedFactor;
+
         if (dist > 0.01) {
           if (pathBlocked) {
             // Enemy tower on this lane is alive: keep X pinned to lane, advance only along Z
@@ -401,12 +726,12 @@ export class UnitManager {
             const dz = destZ - unit.position.z;
             const absZ = Math.abs(dz);
             if (absZ > 0.01) {
-              unit.position.z += (dz / absZ) * unit.def.speed * delta;
+              unit.position.z += (dz / absZ) * moveSpeed * delta;
             }
           } else {
             // Path to citadel is open: free X+Z movement
-            unit.position.x += ((destX - unit.position.x) / dist) * unit.def.speed * delta;
-            unit.position.z += ((destZ - unit.position.z) / dist) * unit.def.speed * delta;
+            unit.position.x += ((destX - unit.position.x) / dist) * moveSpeed * delta;
+            unit.position.z += ((destZ - unit.position.z) / dist) * moveSpeed * delta;
           }
         }
       }
