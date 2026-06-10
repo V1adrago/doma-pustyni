@@ -28,10 +28,17 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 100% 50% at 65% 18%, rgba(255,193,94,.30) 0%, transparent 55%),
-    radial-gradient(ellipse 60%  30% at 20% 10%, rgba(180,80,15,.25)  0%, transparent 50%),
-    linear-gradient(180deg, #2C1B10 0%, #1A0E07 30%, #0F0A06 60%, #090705 100%);
+  /* Desert night sky — deep purple-black to ember horizon */
+  background: linear-gradient(180deg,
+    #060310 0%,
+    #0c0620 12%,
+    #120818 25%,
+    #1e0c0a 45%,
+    #2d1005 60%,
+    #3a1504 72%,
+    #1e0a02 85%,
+    #0e0601 100%
+  );
   padding-top: env(safe-area-inset-top, 0px);
 }
 #main-menu.hidden { display: none; }
@@ -40,6 +47,252 @@
 
 /* Скрытые слои-заглушки */
 .mm-bg,.mm-bg-bottom,.mm-vignette,.mm-dust { display: none; }
+
+/* ─── Пустынная ночная сцена ────────────────────────────────── */
+
+.mm-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Звёзды (первый слой) ── */
+@keyframes mmTwinkle {
+  0%,100% { opacity: 1; }
+  30%      { opacity: 0.55; }
+  60%      { opacity: 0.80; }
+}
+@keyframes mmTwinkle2 {
+  0%,100% { opacity: 0.70; }
+  40%      { opacity: 0.30; }
+  70%      { opacity: 0.90; }
+}
+
+.mm-stars {
+  position: absolute;
+  top: 0; left: 0;
+  width: 1px; height: 1px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 50%;
+  animation: mmTwinkle 7s ease-in-out infinite;
+  box-shadow:
+    /* — Row 1 — */
+    22px  18px 0 0 rgba(255,255,255,0.55),
+    88px  12px 0 0 rgba(255,255,255,0.70),
+    158px 28px 0 0 rgba(255,255,255,0.45),
+    232px 10px 0 0 rgba(255,255,255,0.60),
+    305px 22px 0 0 rgba(255,255,255,0.50),
+    378px 15px 0 0 rgba(255,255,255,0.75),
+    418px 35px 0 0 rgba(255,255,255,0.40),
+    /* — Row 2 — */
+    48px  58px 0 0 rgba(255,255,255,0.60),
+    112px 72px 0 0 rgba(255,255,255,0.45),
+    178px 48px 0 0 rgba(255,255,255,0.65),
+    244px 68px 0 0 rgba(255,255,255,0.35),
+    310px 55px 0 0 rgba(255,255,255,0.55),
+    368px 75px 0 0 rgba(255,255,255,0.50),
+    /* — Row 3 — */
+    15px  105px 0 0 rgba(255,255,255,0.50),
+    72px  118px 0 0 rgba(255,255,255,0.40),
+    138px 92px  0 0 rgba(255,255,255,0.60),
+    198px 110px 0 0 rgba(255,255,255,0.45),
+    265px 98px  0 0 rgba(255,255,255,0.55),
+    328px 115px 0 0 rgba(255,255,255,0.35),
+    392px 105px 0 0 rgba(255,255,255,0.65),
+    /* — Row 4 — */
+    38px  148px 0 0 rgba(255,255,255,0.40),
+    95px  162px 0 0 rgba(255,255,255,0.50),
+    155px 138px 0 0 rgba(255,255,255,0.30),
+    218px 155px 0 0 rgba(255,255,255,0.60),
+    280px 145px 0 0 rgba(255,255,255,0.45),
+    342px 158px 0 0 rgba(255,255,255,0.35),
+    402px 142px 0 0 rgba(255,255,255,0.55),
+    /* — Row 5 — */
+    58px  192px 0 0 rgba(255,255,255,0.30),
+    125px 178px 0 0 rgba(255,255,255,0.35),
+    188px 195px 0 0 rgba(255,255,255,0.25),
+    252px 183px 0 0 rgba(255,255,255,0.40),
+    318px 190px 0 0 rgba(255,255,255,0.28),
+    380px 175px 0 0 rgba(255,255,255,0.38),
+    /* — Яркие звёзды (с glow) — */
+    160px 38px  0 1px rgba(255,245,210,0.95),
+    285px 82px  0 1px rgba(255,248,220,0.90),
+    68px  128px 0 1px rgba(255,240,200,0.85),
+    335px 52px  0 1px rgba(255,245,210,0.90),
+    200px 162px 0 1px rgba(255,235,180,0.75);
+}
+
+/* Второй сдвинутый слой звёзд */
+.mm-stars-2 {
+  animation: mmTwinkle2 11s ease-in-out infinite 4s;
+  box-shadow:
+    55px  25px  0 0 rgba(255,255,255,0.45),
+    142px 62px  0 0 rgba(255,255,255,0.35),
+    210px 38px  0 0 rgba(255,255,255,0.55),
+    298px 72px  0 0 rgba(255,255,255,0.40),
+    352px 28px  0 0 rgba(255,255,255,0.60),
+    28px  88px  0 0 rgba(255,255,255,0.50),
+    108px 100px 0 0 rgba(255,255,255,0.38),
+    172px 118px 0 0 rgba(255,255,255,0.45),
+    242px 88px  0 0 rgba(255,255,255,0.32),
+    312px 108px 0 0 rgba(255,255,255,0.48),
+    388px 92px  0 0 rgba(255,255,255,0.42),
+    18px  140px 0 0 rgba(255,255,255,0.30),
+    78px  168px 0 0 rgba(255,255,255,0.38),
+    148px 148px 0 0 rgba(255,255,255,0.28),
+    225px 165px 0 0 rgba(255,255,255,0.35),
+    295px 155px 0 0 rgba(255,255,255,0.42),
+    358px 168px 0 0 rgba(255,255,255,0.30),
+    412px 155px 0 0 rgba(255,255,255,0.45),
+    /* Ещё яркие */
+    95px  48px  0 1px rgba(255,250,225,0.85),
+    268px 130px 0 1px rgba(255,245,210,0.80);
+}
+
+/* ── Луна ── */
+.mm-moon {
+  position: absolute;
+  top: 7%;
+  right: 14%;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%,
+    #fff8d8 0%,
+    #ffeea0 40%,
+    #f5d060 75%,
+    #d4a030 100%
+  );
+  box-shadow:
+    0 0 20px rgba(255,230,120,0.55),
+    0 0 50px rgba(255,200,80,0.28),
+    0 0 100px rgba(200,140,40,0.15);
+}
+/* Лёгкие кратеры/текстура луны */
+.mm-moon::before {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: rgba(200,160,50,0.35);
+  top: 28%; left: 55%;
+}
+.mm-moon::after {
+  content: '';
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: rgba(190,145,40,0.30);
+  top: 55%; left: 22%;
+}
+
+/* ── Горизонтальный свет ── */
+@keyframes mmHorizonPulse {
+  0%,100% { opacity: 0.55; }
+  50%      { opacity: 0.80; }
+}
+.mm-horizon-glow {
+  position: absolute;
+  bottom: 20%;
+  left: 0; right: 0;
+  height: 35%;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 100%,
+      rgba(200, 90, 20, 0.50) 0%,
+      rgba(160, 60, 10, 0.30) 35%,
+      transparent 65%
+    ),
+    radial-gradient(ellipse 60% 40% at 70% 100%,
+      rgba(220, 110, 25, 0.30) 0%,
+      transparent 55%
+    );
+  animation: mmHorizonPulse 5s ease-in-out infinite;
+}
+
+/* ── Дальние дюны ── */
+.mm-dunes-back {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 46%;
+  background: linear-gradient(180deg,
+    #4a2008 0%,
+    #311208 25%,
+    #1e0a03 60%,
+    #0e0602 100%
+  );
+  clip-path: polygon(
+    0%   100%,
+    0%   62%,
+    5%   50%,
+    12%  58%,
+    20%  38%,
+    28%  52%,
+    37%  28%,
+    45%  44%,
+    53%  18%,
+    61%  38%,
+    68%  22%,
+    76%  42%,
+    84%  30%,
+    91%  48%,
+    97%  36%,
+    100% 44%,
+    100% 100%
+  );
+}
+
+/* ── Ближние дюны (передний план) ── */
+.mm-dunes-front {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 30%;
+  background: linear-gradient(180deg,
+    #1e0c03 0%,
+    #120702 35%,
+    #080401 100%
+  );
+  clip-path: polygon(
+    0%   100%,
+    0%   72%,
+    7%   58%,
+    15%  72%,
+    24%  45%,
+    33%  62%,
+    42%  30%,
+    50%  52%,
+    58%  24%,
+    66%  50%,
+    74%  35%,
+    82%  56%,
+    90%  40%,
+    96%  58%,
+    100% 46%,
+    100% 100%
+  );
+}
+
+/* ── Основание (земля) ── */
+.mm-sand-ground {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 12%;
+  background: linear-gradient(180deg,
+    #0a0401 0%,
+    #060301 100%
+  );
+}
+
+/* ─── Viewport поверх сцены ──────────────────────────────────── */
+.mm-pages-viewport {
+  position: relative;
+  z-index: 1;
+}
+.mm-bottom-nav {
+  position: relative;
+  z-index: 2;
+}
 
 /* ─── Страницы ──────────────────────────────────────────────── */
 .mm-pages-viewport {
@@ -70,8 +323,10 @@
   display: flex;
   height: 56px;
   flex-shrink: 0;
-  background: rgba(9, 7, 5, 0.97);
-  border-top: 1px solid rgba(244,181,74,.18);
+  background: rgba(4, 2, 0, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(244,181,74,.22);
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 10;
 }
@@ -145,16 +400,27 @@
   min-height: 100px;
   text-align: left;
   cursor: pointer;
-  background: var(--panel-bg);
-  border: 2px solid var(--panel-brdr);
+  background: rgba(10, 5, 2, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(244,181,74,.60);
   border-radius: 22px;
-  box-shadow: var(--panel-inset);
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,123,.10),
+    0 4px 24px rgba(0,0,0,0.50),
+    0 0 0 1px rgba(255,214,123,.06);
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
-  transition: border-color .2s;
+  transition: border-color .2s, box-shadow .2s;
 }
 .mm-player-block:hover,
-.mm-player-block:active { border-color: var(--gold-light); }
+.mm-player-block:active {
+  border-color: var(--gold-light);
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,123,.14),
+    0 4px 32px rgba(0,0,0,0.55),
+    0 0 20px rgba(244,181,74,.15);
+}
 
 /* Щит с SVG-артом */
 .mm-shield {
@@ -204,10 +470,14 @@
   padding: 14px 12px;
   display: flex; flex-direction: column;
   justify-content: center; gap: 10px;
-  background: var(--panel-bg);
-  border: 2px solid var(--panel-brdr);
+  background: rgba(10, 5, 2, 0.68);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(244,181,74,.60);
   border-radius: 22px;
-  box-shadow: var(--panel-inset);
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,123,.10),
+    0 4px 24px rgba(0,0,0,0.50);
 }
 .mm-resource {
   display: flex; align-items: center; gap: 9px;
@@ -390,10 +660,15 @@
 /* Активная */
 .mm-faction-active {
   background: linear-gradient(180deg, var(--card-r1), var(--card-r2));
+  backdrop-filter: blur(6px);
   border-color: var(--gold);
-  box-shadow: 0 0 18px rgba(255,191,71,.45);
+  box-shadow:
+    0 0 18px rgba(255,191,71,.45),
+    inset 0 1px 0 rgba(255,214,123,.15);
 }
-.mm-faction-active:hover { box-shadow: 0 0 26px rgba(255,191,71,.70); }
+.mm-faction-active:hover {
+  box-shadow: 0 0 28px rgba(255,191,71,.75), inset 0 1px 0 rgba(255,214,123,.20);
+}
 /* Перекрытие поверх SVG */
 .mm-faction-glow {
   position: absolute; inset: 0;
@@ -477,15 +752,26 @@
 }
 .mm-nav-btn {
   flex: 1; height: 62px; border-radius: 20px;
-  border: 2px solid rgba(244,181,74,.55);
-  background: linear-gradient(180deg, #221508, #130E07);
-  box-shadow: 0 0 10px rgba(255,191,71,.15);
+  border: 1.5px solid rgba(244,181,74,.50);
+  background: rgba(8, 4, 1, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,123,.08),
+    0 2px 16px rgba(0,0,0,0.45),
+    0 0 10px rgba(255,191,71,.08);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
   cursor: pointer; color: var(--text);
   transition: box-shadow .2s, border-color .2s, transform .12s;
   -webkit-tap-highlight-color: transparent;
 }
-.mm-nav-btn:hover  { box-shadow: 0 0 20px rgba(255,191,71,.35); border-color: var(--gold); }
+.mm-nav-btn:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,214,123,.12),
+    0 4px 24px rgba(0,0,0,0.50),
+    0 0 22px rgba(255,191,71,.28);
+  border-color: var(--gold);
+}
 .mm-nav-btn:active { transform: scale(.975); }
 
 /* CSS иконка: скрещённые мечи */
