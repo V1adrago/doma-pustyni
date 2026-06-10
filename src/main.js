@@ -13,7 +13,7 @@ import { DeckBuilder }    from './deck-builder.js';
 import { FactionManager } from './factions.js';
 import { CARD_DEFS, CARD_ICONS, CARD_COLORS, getCardCost, canPlayCard, ENGINEER_MIN_TIMES, AI_DECK } from './cards.js';
 import { PROGRESSION }   from './config/progression.js';
-import { addMatchResult, loadProfile } from './services/profile-service.js';
+import { addMatchResult, loadProfile, saveProfile, getLevelByRating } from './services/profile-service.js';
 import { RoomScreen }     from './room-screen.js';
 import { parseRoomIdFromUrl } from './services/room-service.js';
 import { isOnlineAuthEnabled } from './services/auth-service.js';
@@ -616,6 +616,28 @@ window.addEventListener('popstate', () => {
     mainMenu.show();
   }
 });
+
+// ?dev_level=2  — выставить рейтинг 100 и показать уровень 2 для тестирования
+const _devLevel = new URLSearchParams(location.search).get('dev_level');
+if (_devLevel === '2') {
+  const _p = loadProfile();
+  if (_p.rating < 100) {
+    _p.rating = 100;
+    _p.level  = getLevelByRating(100);
+    _p.pendingLevelUnlockModal = 2;
+    if (!_p.unlockedRouletteHouseIds.includes('desert_clans')) {
+      _p.unlockedRouletteHouseIds.push('desert_clans');
+    }
+    if (!_p._level2FreeRollGranted) {
+      _p.freeRouletteRolls += 1;
+      _p._level2FreeRollGranted = true;
+    }
+    if (!_p.selectedLocationId || _p.selectedLocationId === 'location_1') {
+      _p.selectedLocationId = 'salt_rifts';
+    }
+    saveProfile(_p);
+  }
+}
 
 const _startRoomId = parseRoomIdFromUrl();
 if (_startRoomId) {
