@@ -1,3 +1,6 @@
+export const DESERT_CLANS_ID = 'desert_clans';
+export const HONOR_ID = 'honor';
+
 export const PROGRESSION = [
   {
     level: 1,
@@ -9,9 +12,10 @@ export const PROGRESSION = [
   {
     level: 2,
     minRating: 100,
-    locationId: 'location_2',
-    locationName: 'Дюны добытчиков',
+    locationId: 'salt_rifts',
+    locationName: 'Соляные разломы',
     unlockedHouseIds: ['house_1', 'house_2'],
+    rouletteHouseIds: ['desert_clans'],
   },
   {
     level: 3,
@@ -66,5 +70,31 @@ export const HOUSES = [
     name: 'Дом Красной Цитадели',
     description: 'Открывается на 5 уровне.',
     levelRequired: 5,
+  },
+  {
+    id: 'desert_clans',
+    name: 'Пустынные Кланы',
+    nameShort: 'Кланы',
+    levelRequired: 2,
+    obtainMethod: 'roulette',
+    skillsAreFree: true,
+    description: 'Мобильный дом пустыни. Сильнее использует бури специй и темповые атаки.',
+  },
+];
+
+export const LOCATIONS = [
+  {
+    id: 'location_1',
+    name: 'Песчаный аванпост',
+    levelRequired: 1,
+    minRating: 0,
+    description: 'Базовая карта пустыни.',
+  },
+  {
+    id: 'salt_rifts',
+    name: 'Соляные разломы',
+    levelRequired: 2,
+    minRating: 100,
+    description: 'Карта с бурями специй, которые меняют темп боя и усиливают инженеров.',
   },
 ];

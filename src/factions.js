@@ -22,6 +22,10 @@ export const FACTION_DEFS = {
   honor: {
     id:   'honor',
     name: 'Дом Чести',
+    towerColors: {
+      body: 0xd4960a,
+      cap:  0x8b5e00,
+    },
     // Боевой порядок (passive)
     passiveRange:     7.0,   // max distance to alive own tower for buff to apply
     defenseBonus:     0.08,  // 8% incoming damage reduction
@@ -30,6 +34,20 @@ export const FACTION_DEFS = {
     shieldThreshold:  0.60,  // triggers when citadel HP drops to ≤60% (lost 40%)
     shieldDuration:   6,     // seconds
     shieldReduction:  0.35,  // 35% damage reduction on citadel while active
+  },
+  desert_clans: {
+    id:   'desert_clans',
+    name: 'Пустынные Кланы',
+    towerColors: {
+      body: 0xb8792d,
+      cap:  0xe0b15a,
+    },
+    // След песка (passive) — усиление в бурях специй
+    passive: {
+      id:   'sand_trace',
+      name: 'След песка',
+    },
+    // Пока без уникальных боевых механик — применяется через mapEventManager
   },
 };
 

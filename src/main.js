@@ -13,7 +13,7 @@ import { DeckBuilder }    from './deck-builder.js';
 import { FactionManager } from './factions.js';
 import { CARD_DEFS, CARD_ICONS, CARD_COLORS, getCardCost, canPlayCard, ENGINEER_MIN_TIMES, AI_DECK } from './cards.js';
 import { PROGRESSION }   from './config/progression.js';
-import { addMatchResult } from './services/profile-service.js';
+import { addMatchResult, loadProfile } from './services/profile-service.js';
 import { RoomScreen }     from './room-screen.js';
 import { parseRoomIdFromUrl } from './services/room-service.js';
 import { isOnlineAuthEnabled } from './services/auth-service.js';
@@ -203,16 +203,27 @@ function startRoomMatch() {
 const mainMenu = new MainMenu((preset) => {
   gameConfig = { ...gameConfig, mode: '1p', playerSide: 'bottom' };
 
+  const profile = loadProfile();
+  const profileFaction = profile.selectedFaction || 'honor';
+
   if (preset) {
+    // Приоритет: faction из пресета если он есть в ownedHouseIds, иначе profileFaction
+    const presetFactionOwned = preset.faction && preset.faction !== 'none'
+      ? (profile.ownedHouseIds ?? ['honor']).includes(preset.faction)
+      : false;
+    const faction = presetFactionOwned ? preset.faction : profileFaction;
     playerHand = new Hand([...preset.deck]);
-    gameConfig.playerFaction = preset.faction;
+    gameConfig.playerFaction = faction;
     gameConfig.enemyFaction  = 'none';
     enemyHand  = new Hand([...AI_DECK]);
     beginMatch();
   } else {
     deckBuilder.show('Выбери свою колоду', (deck, faction, selection) => {
+      // Если пользователь выбрал фракцию в DeckBuilder — используем её,
+      // иначе берём из профиля
+      const chosenFaction = (faction && faction !== 'none') ? faction : profileFaction;
       playerHand = new Hand(deck);
-      gameConfig.playerFaction = faction;
+      gameConfig.playerFaction = chosenFaction;
       gameConfig.enemyFaction  = 'none';
       enemyHand  = new Hand([...AI_DECK]);
       beginMatch();

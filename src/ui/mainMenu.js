@@ -1,9 +1,9 @@
 import './mainMenu.css';
-import { menuState } from './menuState.js';
-import { loadProfile } from '../services/profile-service.js';
+import { menuState, syncFactionStates } from './menuState.js';
+import { loadProfile, saveProfile, rollHouse, getAvailableRouletteHouses } from '../services/profile-service.js';
 import { loadWallet } from '../services/wallet-service.js';
 import { MarketPage } from './marketPage.js';
-import { PROGRESSION } from '../config/progression.js';
+import { PROGRESSION, HOUSES } from '../config/progression.js';
 import {
   loadPresets, createPreset, updatePreset, deletePreset, MAX_PRESETS,
 } from '../services/preset-service.js';
@@ -40,6 +40,7 @@ export class MainMenu {
     this._syncProfile();
     this._el.classList.remove('hidden');
     this._updateTutorialBadge();
+    this._checkPendingLevelModal();
   }
 
   hide() {
@@ -71,7 +72,25 @@ export class MainMenu {
       menuState.rating.nextLevelNeed = 0;
     }
 
+    syncFactionStates(p);
     this._render();
+  }
+
+  /* ── Модалка открытия уровня ────────────────────────────── */
+
+  _checkPendingLevelModal() {
+    const p = loadProfile();
+    if (p.pendingLevelUnlockModal === 2) {
+      p.pendingLevelUnlockModal = null;
+      saveProfile(p);
+      // Показываем с небольшой задержкой чтобы меню успело отрисоваться
+      setTimeout(() => {
+        this.openModal(
+          'Открыт уровень 2: Соляные разломы',
+          'Новая карта доступна. На ней появляются бури специй.\nОни ускоряют инженеров и мешают дальним бойцам.\n\nВ рулетку добавлен новый дом: Пустынные Кланы.\nПервый прокрут — бесплатно.'
+        );
+      }, 300);
+    }
   }
 
   /* ── Render ─────────────────────────────────────────────── */
@@ -103,6 +122,7 @@ export class MainMenu {
     if (ratingEl) ratingEl.textContent = s.rating.value.toLocaleString('ru-RU');
 
     this._renderFactions(s.factions);
+    this._renderRouletteBtn();
   }
 
   _renderFactions(factions) {
@@ -110,36 +130,130 @@ export class MainMenu {
     row.innerHTML = '';
     factions.forEach(f => {
       const btn = document.createElement('button');
-      btn.className = 'mm-faction-card ' +
-        (f.state === 'active' ? 'mm-faction-active' : 'mm-faction-locked');
+      btn.className = 'mm-faction-card ' + this._factionCardClass(f.state);
       btn.dataset.factionId = f.id;
-      btn.setAttribute('aria-label',
-        f.state === 'active'
-          ? `Выбрана фракция ${f.name}`
-          : `Фракция ${f.name} — открывается на уровне ${f.unlockLevel}`);
 
-      if (f.state === 'active') {
-        btn.innerHTML = `
-          <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <use href="#mm-card-honor-art"/>
-          </svg>
-          <span class="mm-faction-glow"></span>
-          <span class="mm-faction-check">✓</span>
-          <span class="mm-faction-name">ДОМ<br>ЧЕСТИ</span>`;
-      } else {
-        btn.innerHTML = `
-          <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <use href="#mm-card-locked-art"/>
-          </svg>
-          <span class="mm-lock-badge">
-            <span class="mm-lock-shackle"></span>
-            <span class="mm-lock-body"></span>
-          </span>
-          <span class="mm-faction-name">${f.nameShort}</span>`;
+      const ariaLabel = {
+        active:            `Выбрана фракция ${f.name}`,
+        owned:             `Фракция ${f.name} — нажми чтобы выбрать`,
+        roulette_available:`Фракция ${f.name} — доступна в рулетке`,
+        locked:            `Фракция ${f.name} — открывается на уровне ${f.unlockLevel}`,
+      }[f.state] ?? f.name;
+      btn.setAttribute('aria-label', ariaLabel);
+
+      switch (f.state) {
+        case 'active':
+          btn.innerHTML = `
+            <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <use href="${f.id === 'desert_clans' ? '#mm-card-desert-art' : '#mm-card-honor-art'}"/>
+            </svg>
+            <span class="mm-faction-glow"></span>
+            <span class="mm-faction-check">✓</span>
+            <span class="mm-faction-name">${this._factionLabel(f)}</span>`;
+          break;
+        case 'owned':
+          btn.innerHTML = `
+            <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <use href="${f.id === 'desert_clans' ? '#mm-card-desert-art' : '#mm-card-honor-art'}"/>
+            </svg>
+            <span class="mm-faction-name">${this._factionLabel(f)}</span>`;
+          break;
+        case 'roulette_available':
+          btn.innerHTML = `
+            <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <use href="#mm-card-roulette-art"/>
+            </svg>
+            <span class="mm-roulette-badge">🎰</span>
+            <span class="mm-faction-name">${f.nameShort}</span>`;
+          break;
+        default: // locked
+          btn.innerHTML = `
+            <svg class="mm-card-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <use href="#mm-card-locked-art"/>
+            </svg>
+            <span class="mm-lock-badge">
+              <span class="mm-lock-shackle"></span>
+              <span class="mm-lock-body"></span>
+            </span>
+            <span class="mm-faction-name">${f.nameShort}</span>`;
       }
 
       row.appendChild(btn);
     });
+  }
+
+  _factionCardClass(state) {
+    return {
+      active:            'mm-faction-active',
+      owned:             'mm-faction-owned',
+      roulette_available:'mm-faction-roulette',
+      locked:            'mm-faction-locked',
+    }[state] ?? 'mm-faction-locked';
+  }
+
+  _factionLabel(f) {
+    if (f.id === 'honor')        return 'ДОМ<br>ЧЕСТИ';
+    if (f.id === 'desert_clans') return 'ПУСТЫННЫЕ<br>КЛАНЫ';
+    return f.nameShort;
+  }
+
+  /* ── Кнопка рулетки ────────────────────────────────────── */
+
+  _renderRouletteBtn() {
+    const p = loadProfile();
+    const available = getAvailableRouletteHouses(p);
+    let btn = this._q('#mm-roulette-btn');
+
+    // Показываем кнопку если есть незаполученные дома в рулетке
+    const show = available.length > 0 || p.freeRouletteRolls > 0;
+
+    if (!btn) {
+      // Кнопка ещё не создана — добавим после строки фракций
+      const factionsRow = this._q('#mm-factions-row');
+      if (!factionsRow) return;
+      btn = document.createElement('button');
+      btn.id        = 'mm-roulette-btn';
+      btn.className = 'mm-roulette-open-btn';
+      btn.addEventListener('click', () => this._openRoulette());
+      factionsRow.parentNode.insertBefore(btn, factionsRow.nextSibling);
+    }
+
+    btn.classList.toggle('hidden', !show);
+    const rolls = p.freeRouletteRolls;
+    btn.textContent = rolls > 0
+      ? `Рулетка домов · ${rolls} бесплатн.`
+      : 'Рулетка домов';
+  }
+
+  _openRoulette() {
+    const p = loadProfile();
+    const available = getAvailableRouletteHouses(p);
+
+    if (p.freeRouletteRolls <= 0) {
+      this.openModal('Рулетка домов', 'Бесплатных прокрутов нет.\n\nЗарабатывай бесплатные прокруты, открывая новые уровни.');
+      return;
+    }
+
+    if (available.length === 0) {
+      this.openModal('Рулетка домов', 'Все доступные дома уже получены!');
+      return;
+    }
+
+    const result = rollHouse(p);
+
+    if (result.type === 'house') {
+      const houseDef = HOUSES.find(h => h.id === result.houseId);
+      const houseName = houseDef?.name ?? result.houseId;
+      this._syncProfile();
+      this.openModal(
+        `Получен новый дом: ${houseName}`,
+        'Навыки дома доступны бесплатно.\nТеперь дом можно подключить в коллекции домов.'
+      );
+    } else if (result.type === 'no_free_rolls') {
+      this.openModal('Рулетка домов', 'Бесплатных прокрутов нет.');
+    } else {
+      this.openModal('Рулетка домов', 'Все доступные дома уже получены!');
+    }
   }
 
   /* ── Preset Screen ──────────────────────────────────────── */
@@ -172,7 +286,11 @@ export class MainMenu {
       }
       presets.forEach(preset => {
         const isActive     = preset.id === this._activePresetId;
-        const factionLabel = preset.faction === 'honor' ? '⛨ Дом Чести' : 'Без фракции';
+        const factionLabel = preset.faction === 'honor'
+          ? '⛨ Дом Чести'
+          : preset.faction === 'desert_clans'
+            ? '🏜 Пустынные Кланы'
+            : 'Без фракции';
         const cardCount    = preset.deck?.length ?? 0;
 
         const card = document.createElement('div');
@@ -298,7 +416,7 @@ export class MainMenu {
       const id      = card.dataset.factionId;
       const faction = menuState.factions.find(f => f.id === id);
       if (!faction) return;
-      if (faction.state === 'locked') { this.showLockedFactionModal(faction); this._shake(card); }
+      this._handleFactionClick(faction, card);
     });
 
     this._q('#mm-modal-overlay')?.addEventListener('click', () => this.closeModal());
@@ -323,6 +441,37 @@ export class MainMenu {
       document.getElementById('tutorial-lessons-screen')?.classList.add('hidden');
       this.show();
     });
+  }
+
+  _handleFactionClick(faction, cardEl) {
+    switch (faction.state) {
+      case 'locked':
+        this.openModal(
+          `Дом ${faction.nameShort}`,
+          `${faction.name} — закрытая фракция.\n\nОткрывается на уровне ${faction.unlockLevel}.\n\nПродолжай сражения, чтобы открыть эту фракцию.`
+        );
+        this._shake(cardEl);
+        break;
+
+      case 'roulette_available':
+        this.openModal(
+          faction.name,
+          'Дом доступен в рулетке. Получи его через прокрут.\n\nНажми кнопку «Рулетка домов» чтобы попробовать.'
+        );
+        break;
+
+      case 'owned': {
+        const p = loadProfile();
+        p.selectedFaction = faction.id;
+        saveProfile(p);
+        this._syncProfile();
+        break;
+      }
+
+      case 'active':
+        // уже выбран — ничего не делаем
+        break;
+    }
   }
 
   // Переопределяется из main.js через setOnlineCallbacks
@@ -356,8 +505,9 @@ export class MainMenu {
   openProfile() {
     const p        = loadProfile();
     const nextNeed = menuState.rating.nextLevelNeed;
+    const factionName = menuState.factions.find(f => f.id === p.selectedFaction)?.name ?? p.selectedFaction;
     this.openModal('Профиль воина',
-      `Имя: ${menuState.player.name}\nФракция: ${menuState.player.house}\nУровень: ${p.level}\nРейтинг: ${p.rating} очков\nПобеды: ${p.wins} · Поражений: ${p.losses}\n${nextNeed > 0 ? `До следующего уровня: ${nextNeed} очков` : 'Максимальный уровень'}`);
+      `Имя: ${menuState.player.name}\nФракция: ${factionName}\nУровень: ${p.level}\nРейтинг: ${p.rating} очков\nПобеды: ${p.wins} · Поражений: ${p.losses}\n${nextNeed > 0 ? `До следующего уровня: ${nextNeed} очков` : 'Максимальный уровень'}`);
   }
 
   openSpicesInfo() {

@@ -9,7 +9,7 @@ function _parseSavedDeck() {
     if (!raw) return null;
     const { faction, selection } = JSON.parse(raw);
     if (!faction || !selection) return null;
-    if (faction !== 'none' && faction !== 'honor') return null;
+    if (faction !== 'none' && faction !== 'honor' && faction !== 'desert_clans') return null;
     const validSel = {};
     let total = 0;
     for (const [id, def] of Object.entries(CARD_DEFS)) {
