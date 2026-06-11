@@ -565,6 +565,7 @@ const devConsole = new DevConsole({
   onResume:   resumeBattle,
   onStop:     onGoToMenu,
   onSetSpeed: (mult) => { devSpeedMult = mult; },
+  onProfileRefresh: () => { mainMenu.show(); },
   getState:   () => ({
     matchRunning,
     isPaused,

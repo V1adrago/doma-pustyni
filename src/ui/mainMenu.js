@@ -1,9 +1,10 @@
 import './mainMenu.css';
 import { menuState, syncFactionStates } from './menuState.js';
-import { loadProfile, saveProfile, rollHouse, getAvailableRouletteHouses } from '../services/profile-service.js';
-import { loadWallet } from '../services/wallet-service.js';
+import { loadProfile, saveProfile, rollHouse, rollHousePaid, getAvailableRouletteHouses } from '../services/profile-service.js';
+import { loadWallet, spendWaterRings } from '../services/wallet-service.js';
 import { MarketPage } from './marketPage.js';
 import { PROGRESSION, HOUSES } from '../config/progression.js';
+import { FACTION_DEFS } from '../factions.js';
 import {
   loadPresets, createPreset, updatePreset, deletePreset, MAX_PRESETS,
 } from '../services/preset-service.js';
@@ -74,6 +75,8 @@ export class MainMenu {
 
     syncFactionStates(p);
     this._render();
+    if (this._currentPage === 3) this._renderPathPage();
+    if (this._currentPage === 4) this._renderDomPage();
   }
 
   /* ── Модалка открытия уровня ────────────────────────────── */
@@ -197,63 +200,383 @@ export class MainMenu {
     return f.nameShort;
   }
 
-  /* ── Кнопка рулетки ────────────────────────────────────── */
+  /* ── Кнопка рулетки (на странице Бой — ведёт на вкладку Дом) ── */
 
   _renderRouletteBtn() {
     const p = loadProfile();
     const available = getAvailableRouletteHouses(p);
     let btn = this._q('#mm-roulette-btn');
 
-    // Показываем кнопку если есть незаполученные дома в рулетке
     const show = available.length > 0 || p.freeRouletteRolls > 0;
 
     if (!btn) {
-      // Кнопка ещё не создана — добавим после строки фракций
       const factionsRow = this._q('#mm-factions-row');
       if (!factionsRow) return;
       btn = document.createElement('button');
       btn.id        = 'mm-roulette-btn';
       btn.className = 'mm-roulette-open-btn';
-      btn.addEventListener('click', () => this._openRoulette());
+      btn.addEventListener('click', () => this._switchToPage(3));
       factionsRow.parentNode.insertBefore(btn, factionsRow.nextSibling);
     }
 
     btn.classList.toggle('hidden', !show);
     const rolls = p.freeRouletteRolls;
     btn.textContent = rolls > 0
-      ? `Рулетка домов · ${rolls} бесплатн.`
-      : 'Рулетка домов';
+      ? `🎰 Рулетка домов · ${rolls} бесплатн.`
+      : '🎰 Рулетка домов';
   }
 
-  _openRoulette() {
+  /* ── Страница Домов ─────────────────────────────────────── */
+
+  _renderPathPage() {
+    const container = document.getElementById('mm-page-path');
+    if (!container) return;
+
+    const p = loadProfile();
+    syncFactionStates(p);
+    const factions = menuState.factions;
+    const rolls = p.freeRouletteRolls;
+    const wallet = loadWallet();
+    const rings = wallet.waterRings;
+    const PAID_COST = 50;
+    const canAfford = rings >= PAID_COST;
+
+    container.innerHTML = `
+      <div class="hp-layout">
+        <h2 class="hp-title">Дома Пустыни</h2>
+
+        <div class="hp-roulette-block${rolls > 0 ? ' hp-roulette-active' : ''}">
+          <div class="hp-roulette-top">
+            <span class="hp-roulette-icon">🎰</span>
+            <div class="hp-roulette-info">
+              <div class="hp-roulette-label">Рулетка домов</div>
+              <div class="hp-roulette-sub">${rolls > 0
+                ? `Бесплатных прокрутов: <b>${rolls}</b>`
+                : 'Бесплатных прокрутов нет'}</div>
+            </div>
+          </div>
+          <div class="hp-spin-row">
+            <button class="hp-spin-btn hp-spin-free${rolls <= 0 ? ' hp-spin-disabled' : ''}" id="hp-spin-free">
+              Бесплатно
+              ${rolls > 0 ? `<span class="hp-spin-badge">${rolls}</span>` : ''}
+            </button>
+            <button class="hp-spin-btn hp-spin-paid${!canAfford ? ' hp-spin-disabled' : ''}" id="hp-spin-paid">
+              <span class="hp-spin-cost">${PAID_COST} 💧</span>
+            </button>
+          </div>
+          <div class="hp-wallet-hint">Ваши кольца: <b>${rings}</b> 💧</div>
+        </div>
+
+        <div class="hp-houses-grid">
+          ${factions.map(f => `
+            <button class="hp-house-card hp-house-${f.state}" data-faction-id="${f.id}" aria-label="${f.name}">
+              <svg class="hp-house-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <use href="${f.state === 'locked' ? '#mm-card-locked-art' : f.id === 'desert_clans' ? '#mm-card-desert-art' : '#mm-card-honor-art'}"/>
+              </svg>
+              ${f.state === 'active'            ? `<span class="hp-state-badge hp-badge-active">✓ Выбран</span>` : ''}
+              ${f.state === 'roulette_available' ? `<span class="hp-state-badge hp-badge-roulette">🎰 Рулетка</span>` : ''}
+              ${f.state === 'locked'            ? `<span class="hp-state-badge hp-badge-locked">Ур. ${f.unlockLevel}</span>` : ''}
+              ${f.state === 'owned'             ? `<span class="hp-state-badge hp-badge-owned">Выбрать</span>` : ''}
+              <span class="hp-house-name">${f.nameShort}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    container.querySelector('#hp-spin-free')?.addEventListener('click', () => this._doSpin(false));
+    container.querySelector('#hp-spin-paid')?.addEventListener('click', () => this._doSpin(true));
+
+    container.querySelectorAll('.hp-house-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const faction = menuState.factions.find(f => f.id === card.dataset.factionId);
+        if (faction) this._handleHouseCardClick(faction, card);
+      });
+    });
+  }
+
+  _handleHouseCardClick(faction, cardEl) {
+    switch (faction.state) {
+      case 'locked':
+        this.openModal(
+          `Дом ${faction.nameShort}`,
+          `${faction.name} — закрытая фракция.\n\nОткрывается на уровне ${faction.unlockLevel}.\n\nПродолжай сражения, чтобы открыть эту фракцию.`
+        );
+        this._shake(cardEl);
+        break;
+
+      case 'roulette_available':
+        this._doSpin();
+        break;
+
+      case 'owned': {
+        const p = loadProfile();
+        p.selectedFaction = faction.id;
+        saveProfile(p);
+        this._syncProfile();
+        break;
+      }
+
+      case 'active':
+        break;
+    }
+  }
+
+  _doSpin(paid = false) {
+    const PAID_COST = 50;
     const p = loadProfile();
     const available = getAvailableRouletteHouses(p);
 
-    if (p.freeRouletteRolls <= 0) {
-      this.openModal('Рулетка домов', 'Бесплатных прокрутов нет.\n\nЗарабатывай бесплатные прокруты, открывая новые уровни.');
-      return;
-    }
-
     if (available.length === 0) {
-      this.openModal('Рулетка домов', 'Все доступные дома уже получены!');
+      this.openModal('Рулетка домов', 'Все доступные дома уже получены!\n\nПродолжай играть — новые дома появятся на следующих уровнях.');
       return;
     }
 
-    const result = rollHouse(p);
+    if (paid) {
+      const spent = spendWaterRings(PAID_COST);
+      if (!spent) {
+        const w = loadWallet();
+        this.openModal('Недостаточно колец', `Для прокрута нужно ${PAID_COST} 💧.\nУ тебя ${w.waterRings} 💧.\n\nЗарабатывай водные кольца в сражениях.`);
+        return;
+      }
+      menuState.resources.waterRings = loadWallet().waterRings;
+    } else {
+      if (p.freeRouletteRolls <= 0) {
+        this.openModal('Рулетка домов', `Бесплатных прокрутов нет.\n\nМожно крутить за ${PAID_COST} 💧, или открывай новые уровни.`);
+        return;
+      }
+    }
+
+    const result = paid ? rollHousePaid(p) : rollHouse(p);
 
     if (result.type === 'house') {
       const houseDef = HOUSES.find(h => h.id === result.houseId);
       const houseName = houseDef?.name ?? result.houseId;
-      this._syncProfile();
-      this.openModal(
-        `Получен новый дом: ${houseName}`,
-        'Навыки дома доступны бесплатно.\nТеперь дом можно подключить в коллекции домов.'
-      );
-    } else if (result.type === 'no_free_rolls') {
-      this.openModal('Рулетка домов', 'Бесплатных прокрутов нет.');
+      this._showCaravanJourney(result.houseId, houseName, () => this._syncProfile());
     } else {
       this.openModal('Рулетка домов', 'Все доступные дома уже получены!');
+      this._syncProfile();
     }
+  }
+
+  /* ── Анимация каравана ──────────────────────────────────── */
+
+  /* ── Страница Дом ──────────────────────────────────────── */
+
+  _renderDomPage() {
+    const container = document.getElementById('mm-page-profile');
+    if (!container) return;
+
+    const p = loadProfile();
+    syncFactionStates(p);
+    const factions = menuState.factions;
+
+    // Описания способностей — отображение механик из FACTION_DEFS
+    const ABILITIES = {
+      honor: {
+        passive: {
+          name: 'Боевой порядок',
+          icon: '⚔',
+          desc: 'Юниты рядом с живой башней получают −8% входящего урона и быстрее атакуют (×0.95 кулдаун).',
+        },
+        special: {
+          name: 'Щит гарнизона',
+          icon: '🛡',
+          desc: 'При ≤60% HP цитадели активируется автоматически: −35% урона по цитадели на 6 секунд. Один раз за матч.',
+        },
+        unique: {
+          name: 'Гвардейцы Чести',
+          icon: '⛨',
+          desc: 'Уникальная карта: 680 HP, золотой щит. Мощный защитный отряд.',
+        },
+      },
+      desert_clans: {
+        passive: {
+          name: 'След песка',
+          icon: '🌪',
+          desc: 'Во время бурь специй юниты получают бонус скорости и наносят дополнительный урон.',
+        },
+        special: {
+          name: 'Темп пустыни',
+          icon: '⚡',
+          desc: 'Стиль игры на быстрых атаках и использовании локационных событий. Карты навыков доступны бесплатно.',
+        },
+      },
+    };
+
+    const LOCK_HOW = {
+      honor:        null, // всегда доступен
+      desert_clans: { method: 'roulette', text: 'Получить через рулетку в разделе «Путь»' },
+    };
+
+    const cards = factions.map(f => {
+      const def      = FACTION_DEFS[f.id];
+      const abilities= ABILITIES[f.id];
+      const isActive = f.state === 'active';
+      const isOwned  = f.state === 'owned' || isActive;
+      const lockHow  = LOCK_HOW[f.id];
+
+      const artHref = f.id === 'desert_clans' ? '#mm-card-desert-art' : '#mm-card-honor-art';
+
+      // Блок со способностями
+      const abilitiesHtml = abilities ? Object.values(abilities).map(ab => `
+        <div class="dom-ability">
+          <span class="dom-ability-icon">${ab.icon}</span>
+          <div class="dom-ability-body">
+            <div class="dom-ability-name">${ab.name}</div>
+            <div class="dom-ability-desc">${ab.desc}</div>
+          </div>
+        </div>
+      `).join('') : '';
+
+      // Статус-строка + кнопка действия
+      let actionHtml = '';
+      if (isActive) {
+        actionHtml = `<div class="dom-card-status dom-status-active">✓ Выбран</div>`;
+      } else if (isOwned) {
+        actionHtml = `<button class="dom-select-btn" data-faction-id="${f.id}">Выбрать этот дом</button>`;
+      } else if (f.state === 'roulette_available') {
+        actionHtml = `
+          <div class="dom-card-status dom-status-roulette">🎰 Доступен в рулетке</div>
+          <button class="dom-goto-path-btn" data-faction-id="${f.id}">Перейти в «Путь» →</button>
+        `;
+      } else {
+        actionHtml = `<div class="dom-card-status dom-status-locked">🔒 Открывается на уровне ${f.unlockLevel}</div>`;
+      }
+
+      return `
+        <div class="dom-house-card${isActive ? ' dom-house-active' : ''}${!isOwned && f.state !== 'roulette_available' ? ' dom-house-locked' : ''}">
+          <div class="dom-card-top">
+            <svg class="dom-house-art" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <use href="${f.state === 'locked' ? '#mm-card-locked-art' : artHref}"/>
+            </svg>
+            <div class="dom-card-info">
+              <div class="dom-house-name">${f.name}</div>
+              ${def ? `<div class="dom-house-flavor">${HOUSES.find(h => h.id === f.id)?.description ?? ''}</div>` : ''}
+              ${actionHtml}
+            </div>
+          </div>
+          ${abilitiesHtml ? `
+          <div class="dom-abilities">
+            <div class="dom-abilities-title">Способности</div>
+            ${abilitiesHtml}
+          </div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="dom-layout">
+        <h2 class="dom-title">Дома Пустыни</h2>
+        <div class="dom-subtitle">Выбери дом — его бонусы действуют во всех боях</div>
+        ${cards}
+      </div>
+    `;
+
+    container.querySelectorAll('.dom-select-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prof = loadProfile();
+        prof.selectedFaction = btn.dataset.factionId;
+        saveProfile(prof);
+        this._syncProfile();
+      });
+    });
+
+    container.querySelectorAll('.dom-goto-path-btn').forEach(btn => {
+      btn.addEventListener('click', () => this._switchToPage(3));
+    });
+  }
+
+  _buildCaravanOverlay() {
+    if (document.getElementById('cv-overlay')) return;
+    const el = document.createElement('div');
+    el.id = 'cv-overlay';
+    el.className = 'cv-overlay hidden';
+    el.innerHTML = `
+      <div class="cv-stars" aria-hidden="true"></div>
+      <div class="cv-dune" aria-hidden="true"></div>
+      <div class="cv-content">
+        <div class="cv-heading">Путь каравана</div>
+        <div class="cv-stage">
+          <div class="cv-road"></div>
+          <span class="cv-camel" id="cv-camel">🐪</span>
+        </div>
+        <div class="cv-status" id="cv-status">Уходит в путь...</div>
+        <div class="cv-result hidden" id="cv-result">
+          <div class="cv-result-glow"></div>
+          <svg class="cv-result-card" viewBox="0 0 280 420" preserveAspectRatio="xMidYMid slice">
+            <use id="cv-result-art" href="#mm-card-honor-art"/>
+          </svg>
+          <div class="cv-result-name" id="cv-result-name"></div>
+        </div>
+        <button class="cv-continue hidden" id="cv-continue">Продолжить ›</button>
+      </div>
+    `;
+    document.body.appendChild(el);
+  }
+
+  _showCaravanJourney(houseId, houseName, onDone) {
+    this._buildCaravanOverlay();
+
+    const overlay  = document.getElementById('cv-overlay');
+    const camel    = document.getElementById('cv-camel');
+    const statusEl = document.getElementById('cv-status');
+    const result   = document.getElementById('cv-result');
+    const art      = document.getElementById('cv-result-art');
+    const nameEl   = document.getElementById('cv-result-name');
+    const contBtn  = document.getElementById('cv-continue');
+
+    // reset
+    overlay.classList.remove('hidden');
+    camel.className       = 'cv-camel';
+    camel.style.left      = '-12%';
+    camel.style.opacity   = '1';
+    result.classList.add('hidden');
+    contBtn.classList.add('hidden');
+    statusEl.textContent  = 'Уходит в путь...';
+
+    // настраиваем арт под дом
+    art.setAttribute('href', houseId === 'desert_clans' ? '#mm-card-desert-art' : '#mm-card-honor-art');
+    nameEl.textContent = houseName;
+
+    // фаза 1: верблюд уходит вправо
+    requestAnimationFrame(() => {
+      camel.classList.add('cv-going');
+    });
+
+    setTimeout(() => { statusEl.textContent = 'Ищет добычу в дюнах...'; }, 900);
+
+    // фаза 2: возвращается слева (уже с находкой)
+    setTimeout(() => {
+      camel.className     = 'cv-camel cv-returning';
+      camel.style.left    = '110%';
+      camel.style.opacity = '0';
+      statusEl.textContent = 'Возвращается!';
+    }, 1900);
+
+    // фаза 3: раскрытие награды
+    setTimeout(() => {
+      camel.style.opacity  = '0';
+      statusEl.textContent = '';
+      result.classList.remove('hidden');
+      // переигрываем анимацию карточки
+      const card = result.querySelector('.cv-result-card');
+      card.style.animation = 'none';
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { card.style.animation = ''; });
+      });
+    }, 3300);
+
+    // фаза 4: кнопка продолжить
+    setTimeout(() => {
+      contBtn.classList.remove('hidden');
+    }, 3900);
+
+    // dismiss
+    contBtn.onclick = () => {
+      overlay.classList.add('hidden');
+      onDone?.();
+    };
   }
 
   /* ── Preset Screen ──────────────────────────────────────── */
@@ -773,6 +1096,9 @@ export class MainMenu {
     } else if (idx === 2 && this._marketPage) {
       this._marketPage.refresh();
     }
+
+    if (idx === 3) this._renderPathPage();
+    if (idx === 4) this._renderDomPage();
 
     this._currentPage = idx;
   }

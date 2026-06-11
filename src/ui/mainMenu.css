@@ -1717,3 +1717,618 @@
   background: linear-gradient(135deg, #7a1818, #c04040);
   box-shadow: 0 2px 12px rgba(160,48,48,.6);
 }
+
+/* ─── Страница Домов (вкладка Дом) ──────────────────────────── */
+.hp-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 16px 100px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+  max-width: 430px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hp-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  margin: 0;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.hp-roulette-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,200,50,.2);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.hp-roulette-active {
+  border-color: rgba(255,200,50,.5);
+  background: rgba(255,200,50,.08);
+}
+
+.hp-roulette-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hp-roulette-icon { font-size: 26px; flex-shrink: 0; }
+
+.hp-roulette-info { flex: 1; min-width: 0; }
+
+.hp-roulette-label {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: .05em;
+}
+
+.hp-roulette-sub {
+  font-size: 12px;
+  color: var(--sub);
+  margin-top: 2px;
+}
+
+.hp-spin-row {
+  display: flex;
+  gap: 10px;
+}
+
+.hp-spin-btn {
+  flex: 1;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 10px;
+  cursor: pointer;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity .15s, transform .1s;
+}
+
+.hp-spin-free {
+  background: linear-gradient(135deg, #c8951a, #e8b830);
+  color: #1a1208;
+}
+
+.hp-spin-paid {
+  background: rgba(80,160,255,.18);
+  border: 1px solid rgba(80,160,255,.5);
+  color: #7ab8ff;
+}
+
+.hp-spin-paid:hover { background: rgba(80,160,255,.28); }
+
+.hp-spin-btn:active:not(.hp-spin-disabled) { opacity: .82; transform: scale(.97); }
+
+.hp-spin-disabled {
+  opacity: .38;
+  cursor: default;
+  pointer-events: none;
+}
+
+.hp-spin-badge {
+  background: rgba(0,0,0,.35);
+  color: #1a1208;
+  font-size: 10px;
+  border-radius: 99px;
+  padding: 1px 6px;
+  font-weight: 900;
+}
+
+.hp-spin-cost { font-size: 13px; }
+
+.hp-wallet-hint {
+  font-size: 11px;
+  color: var(--sub);
+  opacity: .6;
+  text-align: right;
+}
+
+.hp-houses-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.hp-house-card {
+  position: relative;
+  aspect-ratio: 2/3;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  cursor: pointer;
+  padding: 0;
+  transition: transform .15s, border-color .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hp-house-card:active { transform: scale(.96); }
+
+.hp-house-art {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hp-house-name {
+  position: absolute;
+  bottom: 8px;
+  left: 0; right: 0;
+  text-align: center;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 6px rgba(0,0,0,.95);
+}
+
+.hp-state-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.hp-badge-active  { background: rgba(100,220,100,.88); color: #0a200a; }
+.hp-badge-roulette { background: rgba(255,200,50,.88); color: #1a1208;
+                     animation: hpBadgePulse 2s ease-in-out infinite; }
+.hp-badge-locked  { background: rgba(0,0,0,.6); color: rgba(255,255,255,.5); }
+.hp-badge-owned   { background: rgba(80,140,255,.85); color: #fff; }
+
+@keyframes hpBadgePulse {
+  0%,100% { box-shadow: 0 0 4px rgba(255,200,50,.4); }
+  50%     { box-shadow: 0 0 12px rgba(255,200,50,.9); }
+}
+
+.hp-house-active {
+  border-color: #d4a020;
+  box-shadow: 0 0 16px rgba(212,160,32,.35);
+}
+
+.hp-house-roulette_available {
+  border-color: rgba(255,200,50,.6);
+  animation: hpCardPulse 2.5s ease-in-out infinite;
+}
+
+@keyframes hpCardPulse {
+  0%,100% { box-shadow: none; }
+  50%     { box-shadow: 0 0 20px rgba(255,200,50,.4); }
+}
+
+.hp-house-locked {
+  filter: grayscale(.65);
+  opacity: .6;
+}
+
+.hp-house-locked:active { transform: none; }
+
+.hp-house-owned { border-color: rgba(80,140,255,.45); }
+
+/* ─── Оверлей каравана ────────────────────────────────────── */
+.cv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: #09070400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: cvFadeIn .35s ease forwards;
+}
+.cv-overlay.hidden { display: none; }
+
+@keyframes cvFadeIn {
+  from { background: rgba(9,7,4,0); }
+  to   { background: rgba(9,7,4,.97); }
+}
+
+/* Звёзды */
+.cv-stars {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 8%  12%, rgba(255,230,150,.8) 0%, transparent 100%),
+    radial-gradient(1px   1px   at 18%  5%, rgba(255,255,255,.6) 0%, transparent 100%),
+    radial-gradient(2px   2px   at 32% 18%, rgba(255,220,130,.7) 0%, transparent 100%),
+    radial-gradient(1px   1px   at 45%  8%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 60% 14%, rgba(255,230,150,.75)0%, transparent 100%),
+    radial-gradient(1px   1px   at 72%  4%, rgba(255,255,255,.55)0%, transparent 100%),
+    radial-gradient(2px   2px   at 85% 20%, rgba(255,220,130,.65)0%, transparent 100%),
+    radial-gradient(1px   1px   at 92%  9%, rgba(255,255,255,.5) 0%, transparent 100%),
+    radial-gradient(1px   1px   at 15% 25%, rgba(255,255,255,.4) 0%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 55% 28%, rgba(255,220,130,.5) 0%, transparent 100%),
+    radial-gradient(1px   1px   at 78% 30%, rgba(255,255,255,.45)0%, transparent 100%),
+    radial-gradient(1px   1px   at 38% 35%, rgba(255,230,150,.4) 0%, transparent 100%);
+  animation: cvTwinkle 4s ease-in-out infinite alternate;
+}
+@keyframes cvTwinkle {
+  0%   { opacity: .7; }
+  50%  { opacity: 1; }
+  100% { opacity: .6; }
+}
+
+/* Дюна */
+.cv-dune {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 28%;
+  background: radial-gradient(ellipse 130% 100% at 50% 105%, #2e1c06 0%, #1a0e03 50%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Основной контент */
+.cv-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 430px;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+}
+
+.cv-heading {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(212,160,32,.5);
+}
+
+/* Сцена движения верблюда */
+.cv-stage {
+  width: 100%;
+  height: 90px;
+  position: relative;
+}
+
+.cv-road {
+  position: absolute;
+  top: 50%; left: -20px; right: -20px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255,200,80,.25) 20%, rgba(255,200,80,.25) 80%, transparent);
+  transform: translateY(-50%);
+}
+
+.cv-camel {
+  position: absolute;
+  font-size: 52px;
+  top: 50%;
+  left: -12%;
+  transform: translateY(-60%);
+  filter: drop-shadow(0 4px 12px rgba(255,180,50,.4));
+  will-change: left, opacity;
+}
+
+/* Верблюд уходит вправо */
+.cv-going {
+  animation: cvGoRight 1.7s cubic-bezier(.4,0,.8,1) forwards;
+}
+@keyframes cvGoRight {
+  0%   { left: -12%; opacity: 1; }
+  75%  { opacity: 1; }
+  100% { left: 112%; opacity: 0; }
+}
+
+/* Верблюд возвращается слева, развёрнут */
+.cv-returning {
+  animation: cvReturnLeft 1.4s cubic-bezier(.2,0,.6,1) forwards;
+  transform: translateY(-60%) scaleX(-1);
+}
+@keyframes cvReturnLeft {
+  0%   { left: 110%; opacity: 0; transform: translateY(-60%) scaleX(-1); }
+  20%  { opacity: 1; }
+  100% { left: 15%;  opacity: 0; transform: translateY(-60%) scaleX(-1); }
+}
+
+/* Статус-текст */
+.cv-status {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 16px;
+  color: rgba(255,220,130,.75);
+  letter-spacing: .06em;
+  min-height: 24px;
+  text-align: center;
+  animation: cvStatusPulse 1.8s ease-in-out infinite;
+}
+@keyframes cvStatusPulse {
+  0%,100% { opacity: .65; }
+  50%     { opacity: 1; }
+}
+
+/* Блок с наградой */
+.cv-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.cv-result.hidden { display: none; }
+
+.cv-result-glow {
+  position: absolute;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,200,50,.3) 0%, transparent 70%);
+  animation: cvGlowPulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cvGlowPulse {
+  0%,100% { transform: scale(.8); opacity: .5; }
+  50%     { transform: scale(1.2); opacity: 1; }
+}
+
+.cv-result-card {
+  width: 160px;
+  aspect-ratio: 2/3;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 0 32px rgba(255,200,50,.5), 0 8px 24px rgba(0,0,0,.8);
+  border: 2px solid rgba(255,200,50,.6);
+  animation: cvCardIn .55s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes cvCardIn {
+  from { transform: scale(.2) rotate(-20deg); opacity: 0; }
+  to   { transform: scale(1)  rotate(0deg);  opacity: 1; }
+}
+
+.cv-result-name {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  letter-spacing: .06em;
+  text-shadow: 0 0 16px rgba(212,160,32,.6);
+  animation: cvNameIn .4s ease .2s both;
+}
+@keyframes cvNameIn {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Кнопка продолжить */
+.cv-continue {
+  background: linear-gradient(135deg, #c8951a, #e8b830);
+  color: #1a1208;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 40px;
+  cursor: pointer;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  animation: cvContinueIn .3s ease both;
+}
+.cv-continue.hidden { display: none; }
+@keyframes cvContinueIn {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.cv-continue:active { opacity: .82; transform: scale(.97); }
+
+/* ─── Страница Дом ─────────────────────────────────────────── */
+.dom-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 16px 100px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+  max-width: 430px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.dom-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  margin: 0;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.dom-subtitle {
+  font-size: 13px;
+  color: var(--sub);
+  text-align: center;
+  margin-top: -8px;
+  opacity: .65;
+}
+
+/* Карточка дома */
+.dom-house-card {
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.dom-house-active {
+  border-color: rgba(212,160,32,.6);
+  box-shadow: 0 0 20px rgba(212,160,32,.15);
+}
+
+.dom-house-locked {
+  opacity: .6;
+  filter: grayscale(.45);
+}
+
+/* Верхняя часть: арт + инфо */
+.dom-card-top {
+  display: flex;
+  gap: 14px;
+  padding: 14px 14px 0;
+  align-items: flex-start;
+}
+
+.dom-house-art {
+  width: 80px;
+  min-width: 80px;
+  aspect-ratio: 2/3;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.12);
+  flex-shrink: 0;
+}
+
+.dom-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.dom-house-name {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: .04em;
+}
+
+.dom-house-flavor {
+  font-size: 12px;
+  color: var(--sub);
+  line-height: 1.4;
+  opacity: .7;
+}
+
+/* Статус */
+.dom-card-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.dom-status-active  { background: rgba(100,220,100,.2); color: #7be07b; border: 1px solid rgba(100,220,100,.35); }
+.dom-status-roulette{ background: rgba(255,200,50,.15); color: #f0c840; border: 1px solid rgba(255,200,50,.35); }
+.dom-status-locked  { background: rgba(255,255,255,.06); color: rgba(255,255,255,.4); border: 1px solid rgba(255,255,255,.1); }
+
+/* Кнопки */
+.dom-select-btn,
+.dom-goto-path-btn {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  text-align: center;
+  margin-top: 2px;
+  transition: opacity .15s, transform .1s;
+}
+
+.dom-select-btn {
+  background: linear-gradient(135deg, #c8951a, #e8b830);
+  color: #1a1208;
+}
+
+.dom-goto-path-btn {
+  background: rgba(255,200,50,.1);
+  color: var(--gold);
+  border: 1px solid rgba(255,200,50,.3);
+}
+
+.dom-select-btn:active,
+.dom-goto-path-btn:active { opacity: .82; transform: scale(.98); }
+
+/* Блок способностей */
+.dom-abilities {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(255,255,255,.07);
+  margin-top: 12px;
+}
+
+.dom-abilities-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--sub);
+  opacity: .55;
+}
+
+.dom-ability {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.dom-ability-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.dom-ability-body { flex: 1; min-width: 0; }
+
+.dom-ability-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,220,140,.9);
+  margin-bottom: 2px;
+}
+
+.dom-ability-desc {
+  font-size: 12px;
+  color: var(--sub);
+  line-height: 1.45;
+  opacity: .8;
+}

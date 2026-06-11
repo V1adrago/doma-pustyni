@@ -1,6 +1,10 @@
 // Dev Console — developer overlay for quick match start, unit spawn, speed control.
 // Only active on localhost or when URL contains ?dev=1.
 
+import { addWaterRings, loadWallet } from './services/wallet-service.js';
+import { loadProfile, saveProfile, getLevelByRating } from './services/profile-service.js';
+import { PROGRESSION } from './config/progression.js';
+
 function _isDevMode() {
   return location.hostname === 'localhost' ||
          location.hostname === '127.0.0.1' ||
@@ -105,6 +109,19 @@ const CSS = `
 .dc-select:focus { outline: 1px solid #7a5020; }
 .dc-select option { background: #181410; }
 
+.dc-input {
+  flex: 1;
+  background: #181410;
+  border: 1px solid #2e2010;
+  color: #e0c070;
+  padding: 5px 7px;
+  font: 11px/1 monospace;
+  border-radius: 3px;
+  min-width: 0;
+}
+.dc-input:focus { outline: 1px solid #7a5020; }
+.dc-input::placeholder { color: #4a3820; }
+
 .dc-divider { border: none; border-top: 1px solid #1e1608; margin: 8px 0; }
 
 .dc-status {
@@ -119,10 +136,10 @@ const CSS = `
 `;
 
 export class DevConsole {
-  constructor({ onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState }) {
+  constructor({ onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState, onProfileRefresh }) {
     if (!_isDevMode()) { this._noop = true; return; }
 
-    this._cb = { onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState };
+    this._cb = { onQuickAI, onQuickVsAI, on2P, onSpawnUnit, onPause, onResume, onSetSpeed, getState, onProfileRefresh };
     this._visible  = false;
     this._spawnSide = 'player';
     this._spawnLane = 'center';
@@ -209,6 +226,35 @@ export class DevConsole {
         </div>
       </div>
 
+      <hr class="dc-divider">
+
+      <!-- Прогрессия -->
+      <div class="dc-sec">
+        <div class="dc-sec-lbl">Прогрессия (рейтинг / уровень)</div>
+        <div class="dc-row" style="margin-bottom:5px" id="dc-level-btns"></div>
+        <div class="dc-row" style="margin-bottom:4px">
+          <input class="dc-input" id="dc-rating-input" type="number" min="0" placeholder="Свой рейтинг">
+          <button class="dc-btn" id="dc-rating-set">Задать</button>
+        </div>
+        <div class="dc-row">
+          <button class="dc-btn dc-danger dc-full" id="dc-reset-profile">🗑 Сбросить профиль</button>
+        </div>
+        <div class="dc-status" id="dc-prog-status" style="margin-top:4px;padding-top:5px;border-top:none"></div>
+      </div>
+
+      <hr class="dc-divider">
+
+      <!-- Ресурсы -->
+      <div class="dc-sec">
+        <div class="dc-sec-lbl">Ресурсы (тест рулетки)</div>
+        <div class="dc-row" style="margin-bottom:5px">
+          <button class="dc-btn" id="dc-res-rings500">+500 💧</button>
+          <button class="dc-btn" id="dc-res-rings50">+50 💧</button>
+          <button class="dc-btn" id="dc-res-roll">+1 прокрут</button>
+        </div>
+        <div class="dc-status" id="dc-res-status" style="margin-top:0;padding-top:5px;border-top:none"></div>
+      </div>
+
       <div class="dc-status" id="dc-status">— вне матча —</div>
     `;
 
@@ -262,6 +308,86 @@ export class DevConsole {
                     { id: 'dc-sp2',  v: 2   }, { id: 'dc-sp4', v: 4 }];
     speeds.forEach(({ id, v }) => {
       p.querySelector(`#${id}`).addEventListener('click', () => this._setSpeed(v, speeds));
+    });
+
+    // Progression
+    const progStatus = p.querySelector('#dc-prog-status');
+    const levelBtns  = p.querySelector('#dc-level-btns');
+    const ratingInput = p.querySelector('#dc-rating-input');
+
+    const _setRating = (val) => {
+      const pr = loadProfile();
+      pr.rating = Math.max(0, val);
+      pr.level  = getLevelByRating(pr.rating);
+      // сбрасываем флаг чтобы level-up механика сработала заново
+      pr.pendingLevelUnlockModal = null;
+      pr._level2FreeRollGranted  = false;
+      // level 2+ rewards
+      if (pr.level >= 2) {
+        if (!pr.unlockedRouletteHouseIds.includes('desert_clans'))
+          pr.unlockedRouletteHouseIds.push('desert_clans');
+        if (!pr._level2FreeRollGranted) {
+          pr.freeRouletteRolls = (pr.freeRouletteRolls || 0) + 1;
+          pr._level2FreeRollGranted = true;
+        }
+      }
+      saveProfile(pr);
+      if (progStatus) progStatus.innerHTML = `Ур.<b class="dc-hi">${pr.level}</b>  Рейтинг: <b class="dc-hi">${pr.rating}</b>`;
+      this._cb.onProfileRefresh?.();
+    };
+
+    // Кнопки быстрого перехода по уровням
+    PROGRESSION.forEach(tier => {
+      const btn = document.createElement('button');
+      btn.className = 'dc-btn';
+      btn.textContent = `Ур.${tier.level} (${tier.minRating})`;
+      btn.addEventListener('click', () => _setRating(tier.minRating));
+      levelBtns.appendChild(btn);
+    });
+
+    // Поле произвольного рейтинга
+    p.querySelector('#dc-rating-set').addEventListener('click', () => {
+      const v = parseInt(ratingInput.value, 10);
+      if (!isNaN(v)) _setRating(v);
+    });
+    ratingInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const v = parseInt(ratingInput.value, 10); if (!isNaN(v)) _setRating(v); }
+    });
+
+    // Сброс профиля
+    p.querySelector('#dc-reset-profile').addEventListener('click', () => {
+      if (!confirm('Сбросить профиль? Прогресс будет потерян.')) return;
+      const fresh = { rating:0, level:1, wins:0, losses:0, selectedFaction:'honor',
+        ownedHouseIds:['honor'], freeRouletteRolls:0, unlockedRouletteHouseIds:[],
+        lastUnlockedLevel:1, pendingLevelUnlockModal:null, _level2FreeRollGranted:false };
+      saveProfile(fresh);
+      if (progStatus) progStatus.innerHTML = `Профиль сброшен`;
+      this._cb.onProfileRefresh?.();
+    });
+
+    // Инициальный показ текущего состояния
+    { const pr = loadProfile(); if (progStatus) progStatus.innerHTML = `Ур.<b class="dc-hi">${pr.level}</b>  Рейтинг: <b class="dc-hi">${pr.rating}</b>`; }
+
+    // Resources
+    const resStatus = p.querySelector('#dc-res-status');
+    const _showRes = () => {
+      const w = loadWallet();
+      const pr = loadProfile();
+      if (resStatus) resStatus.innerHTML = `💧 <b class="dc-hi">${w.waterRings}</b>  🎰 прокруты: <b class="dc-hi">${pr.freeRouletteRolls}</b>`;
+    };
+    _showRes();
+
+    p.querySelector('#dc-res-rings500').addEventListener('click', () => {
+      addWaterRings(500); _showRes();
+    });
+    p.querySelector('#dc-res-rings50').addEventListener('click', () => {
+      addWaterRings(50); _showRes();
+    });
+    p.querySelector('#dc-res-roll').addEventListener('click', () => {
+      const pr = loadProfile();
+      pr.freeRouletteRolls = (pr.freeRouletteRolls || 0) + 1;
+      saveProfile(pr);
+      _showRes();
     });
   }
 

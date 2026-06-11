@@ -156,3 +156,18 @@ export function rollHouse(profile) {
   saveProfile(profile);
   return { type: 'house', houseId };
 }
+
+// Платный прокрут: не тратит бесплатные прокруты, деньги уже списаны до вызова
+export function rollHousePaid(profile) {
+  const pool = getAvailableRouletteHouses(profile);
+
+  if (pool.length === 0) {
+    return { type: 'empty' };
+  }
+
+  const houseId = pool[Math.floor(Math.random() * pool.length)];
+  profile.ownedHouseIds.push(houseId);
+
+  saveProfile(profile);
+  return { type: 'house', houseId };
+}
